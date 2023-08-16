@@ -1,5 +1,5 @@
 # gtdpy
-GTD scripts for pywin32 and outlook
+GTD gui scripts for pywin32 and outlook
 
 Assumes you have outlook and pywin32 installed on Windows.
 
