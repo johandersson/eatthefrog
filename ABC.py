@@ -43,7 +43,7 @@ def close_window(event=None):
 root.bind("<Escape>", close_window)
 
 # make the window full screen from start
-root.attributes('-fullscreen', True)
+#root.attributes('-fullscreen', True)
 root.config(bg="white")
 
 # create a frame to display the tasks
@@ -62,6 +62,20 @@ dot_radius = 8  # radius of each dot
 dot_gap = 10  # gap between each dot and task
 text_gap = 20  # gap between each task and text
 line_height = 30  # height of each line
+
+
+def mark_done(event, task):
+    if task.Status == 2:
+        task.Status = 1
+    else:
+        task.Status = 2
+
+    item = canvas.find_withtag("current")
+    # Change its fill color to gold
+    canvas.itemconfig(item, fill="gold")
+
+    task.Save()
+
 
 # loop through the sorted list and draw the tasks on the canvas
 for i, (task, category) in enumerate(tasks_by_category):
@@ -89,8 +103,10 @@ for i, (task, category) in enumerate(tasks_by_category):
         color = "green"
 
     # draw a dot on the canvas with the color
-    canvas.create_oval(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius, fill=color, outline=color)
+    dot = canvas.create_oval(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius, fill=color,
 
+                             outline=color)
+    canvas.tag_bind(dot, "<Button-3>", lambda event, task=task: mark_done(event,task))
     # draw a text with the task information on the canvas with black color and Arial font size 14
     canvas.create_text(x3, y3, text=task_info, fill="black", font=("Arial", 12), anchor=tk.W)
 
