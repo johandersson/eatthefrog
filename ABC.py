@@ -354,6 +354,26 @@ root.bind("<Control-n>", lambda event: create_new_task_popup())
 root.bind("<Control-r>", lambda event: load_tasks())
 #bind reload when window is focused or clicked or maximized but not on startup
 
+#on startup animate a text on the canvas saying "Eat the frog with a frog smiling face"
+#draw a frog smiling face on the canvas
+frog_smiling_face = canvas.create_text(350, 200, text="🐸", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+#dray a text under the frog saying "Eat the frog"
+eat_the_frog_text = canvas.create_text(350, 300, text="Eat the frog", fill="green", font=("Arial", 30), anchor=tk.CENTER)
 
+#blink the frog and the text for 3 seconds and then remove both
+def blink_loading_text():
+    #blink the frog and the text for 3 seconds
+    canvas.itemconfig(frog_smiling_face, fill="white")
+    canvas.itemconfig(eat_the_frog_text, fill="white")
+    #after 0.5 seconds change the color back to green
+    root.after(500, lambda: canvas.itemconfig(frog_smiling_face, fill="green"))
+    root.after(500, lambda: canvas.itemconfig(eat_the_frog_text, fill="green"))
+    #after 1 second call the function again
+    root.after(1000, blink_loading_text)
+
+blink_loading_text()
+#after 3 seconds delete frog and text
+root.after(3000, lambda: canvas.delete(frog_smiling_face))
+root.after(3000, lambda: canvas.delete(eat_the_frog_text))
 # start the main loop of the GUI
 root.mainloop()
