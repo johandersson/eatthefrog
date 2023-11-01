@@ -371,6 +371,35 @@ def blink_loading_text():
     #after 1 second call the function again
     root.after(1000, blink_loading_text)
 
+#create help icon on canvas on the top right corner
+help_icon = canvas.create_text(680, 20, text="?", fill="black", font=("Arial", 20), anchor=tk.CENTER)
+#bind help icon to open help window
+canvas.tag_bind(help_icon, "<Button-1>", lambda event: open_help_window())
+
+def open_help_window():
+    #create a popup window
+    popup = tk.Toplevel(root)
+    popup.title("Help")
+    popup.config(bg="white")
+    popup.geometry("600x400")
+    popup.resizable(False, False)
+
+    #create a frame to hold the widgets
+    frame = tk.Frame(popup)
+    frame.config(bg="white")
+    frame.pack(fill=tk.BOTH)
+    #make the frame as big as the popup window
+    popup.grid_rowconfigure(0, weight=1)
+
+    #create a label to display the help text
+    help_text = tk.Label(frame)
+    #display the help text
+    help_text.config(text="Press ctrl+n to create a new task\nPress ctrl+r to reload the tasks\nDouble click on a task to open it in Outlook\nRight click on a task to mark it as complete\nHover over a task to see its body\nPress esc to exit the app")
+    #pack the label
+    #make the frame fill the popup window
+
+    help_text.pack()
+
 blink_loading_text()
 #after 3 seconds delete frog and text
 root.after(3000, lambda: canvas.delete(frog_smiling_face))
