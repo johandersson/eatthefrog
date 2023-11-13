@@ -25,7 +25,8 @@ root.bind("<Escape>", close_window)
 # make the window full screen from start
 # root.attributes('-fullscreen', True)
 root.config(bg="white")
-
+#root title "Eat the frog"
+root.title("Eat the frog")
 # create a frame to display the tasks
 frame = tk.Frame(root)
 frame.config(width=800, height=600)
@@ -43,6 +44,21 @@ status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 def draw_tasks():
     # clear
     canvas.delete("all")
+    if len(tasks_by_category) == 0:
+        # draw a big light green check mark on the canvas
+        canvas.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        # draw a text under the check mark saying "No tasks"
+        canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
+        # draw a text under the check mark saying "Press ctrl+n to create a new task"
+        canvas.create_text(350, 350, text="Press ctrl+n to create a new task", fill="green", font=("Arial", 15),
+                           anchor=tk.CENTER)
+        # draw a text under the check mark saying "Press ctrl+r to reload the tasks"
+        canvas.create_text(350, 380, text="Press ctrl+r to reload the tasks", fill="green", font=("Arial", 15),
+                           anchor=tk.CENTER)
+        #press ctrl+p to show project tasks
+        canvas.create_text(350, 410, text="Press ctrl+p to show project tasks", fill="green", font=("Arial", 15),
+                           anchor=tk.CENTER)
+        
     global task, category
     for i, (task, category) in enumerate(tasks_by_category):
         # get the task subject and due date
@@ -82,15 +98,14 @@ def draw_tasks():
         canvas.tag_bind(dot, "<Double-Button-1>", lambda event, task=task: task.Display())
         # draw a text with the task information on the canvas with black color and Arial font size 14
         task_text = canvas.create_text(x3, y3, text=task_info, fill="black", font=("Arial", 12), anchor=tk.W)
-        #when hovering the task_text change the font to bold
-        #when hovering over task_text display the task body in the status bar
-        #if body is larger than 100 characters, display only the first 100 characters
         if len(body) > 100:
             #strip the body of new lines or blank lines
             body = body.replace("\n", " ").replace("\r", " ").replace("\t", " ")
             canvas.tag_bind(task_text, "<Enter>", lambda event, body=body[:100] + "...": status_bar.config(text=body))
         else:
             canvas.tag_bind(task_text, "<Enter>", lambda event, body=body: status_bar.config(text=body))
+
+        canvas.tag_bind(task_text, "<Leave>", lambda event: status_bar.config(text=""))
 
 
         #if task is completed draw light green check mark on the right to the text
@@ -132,7 +147,7 @@ def draw_due_date_tasks(task, x3, y3):
             canvas.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
 
 
-def load_tasks():
+def load_tasks(show_projects=False):
     global tasks_by_category, task, category
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
@@ -151,9 +166,14 @@ def load_tasks():
         # get the category of the task
         category = task.Categories
         #if task is category A, B, or C
-        if category == "A" or category == "B" or category == "C" or "Projects" in category:
-            #add task to list
-            tasks_by_category.append((task, category))
+        if show_projects:
+            if category == "A" or category == "B" or category == "C" or "Projects" in category:
+                # add task to list
+                tasks_by_category.append((task, category))
+        else:
+            if category == "A" or category == "B" or category == "C":
+                #add task to list
+                tasks_by_category.append((task, category))
 
 
     # sort the list by category in ascending order
@@ -185,10 +205,12 @@ def mark_done(event, task):
     canvas.itemconfig(item, fill="gold")
 
     #reload the tasks after 3 seconds
-    root.after(3000, load_tasks)
+
+    root.after(1000, load_tasks)
 
 
-def save_task(subject, category, due_date, popup):
+def save_task(subject, category, due_date, popup = None):
+
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
     # get the namespace object
@@ -246,9 +268,10 @@ def save_task(subject, category, due_date, popup):
 
     # save the task in the tasks folder
     task.Save()
-    # close the popup window
-    popup.destroy()
-    # reload the tasks
+    #if popup is not None
+    if popup:
+        #destroy the popup
+        popup.destroy()
     load_tasks()
 
 
@@ -326,16 +349,21 @@ def create_new_task_popup():
 
 
 
+
+
+
     # create a button to save the task
     save_button = tk.Button(frame)
     save_button.config(text="Save", command=lambda: save_task(subject_entry.get(), category_var.get(), due_date_var.get(), popup),
                        bg="white")
-    save_button.grid(row=3, column=0, padx=10, pady=10)
+
 
     # create a button to cancel the task
     cancel_button = tk.Button(frame)
     cancel_button.config(text="Cancel", command=popup.destroy, bg="white")
-    cancel_button.grid(row=3, column=1, padx=10, pady=10)
+    # show save and cancel buttons at the bottom right corner
+    save_button.grid(row=4, column=2, padx=10, pady=10)
+    cancel_button.grid(row=4, column=3, padx=10, pady=10)
     #focus on subject entry
     subject_entry.focus_set()
     #bind enter key to save button
@@ -354,27 +382,27 @@ root.bind("<Control-n>", lambda event: create_new_task_popup())
 root.bind("<Control-r>", lambda event: load_tasks())
 #bind reload when window is focused or clicked or maximized but not on startup
 
-#on startup animate a text on the canvas saying "Eat the frog with a frog smiling face"
-#draw a frog smiling face on the canvas
-frog_smiling_face = canvas.create_text(350, 200, text="🐸", fill="green", font=("Arial", 100), anchor=tk.CENTER)
-#dray a text under the frog saying "Eat the frog"
-eat_the_frog_text = canvas.create_text(350, 300, text="Eat the frog", fill="green", font=("Arial", 30), anchor=tk.CENTER)
-
-#blink the frog and the text for 3 seconds and then remove both
-def blink_loading_text():
-    #blink the frog and the text for 3 seconds
-    canvas.itemconfig(frog_smiling_face, fill="white")
-    canvas.itemconfig(eat_the_frog_text, fill="white")
-    #after 0.5 seconds change the color back to green
-    root.after(500, lambda: canvas.itemconfig(frog_smiling_face, fill="green"))
-    root.after(500, lambda: canvas.itemconfig(eat_the_frog_text, fill="green"))
-    #after 1 second call the function again
-    root.after(1000, blink_loading_text)
-
 #create help icon on canvas on the top right corner
 help_icon = canvas.create_text(680, 20, text="?", fill="black", font=("Arial", 20), anchor=tk.CENTER)
 #bind help icon to open help window
 canvas.tag_bind(help_icon, "<Button-1>", lambda event: open_help_window())
+
+#delete frog and text function
+def delete_frog_and_text(frog_smiling_face, eat_the_frog_text):
+    #delete frog and text
+    canvas.delete(frog_smiling_face)
+    canvas.delete(eat_the_frog_text)
+    #remove blinking loading text
+    #reload canvas
+    load_tasks()
+
+#function to hide Project tasks
+def hide_project_tasks():
+    #loop through the tasks and hide the ones with category Projects
+    load_tasks(show_projects=True)
+
+#call hide project tasks function when pressing CTRL+H
+root.bind("<Control-p>", lambda event: hide_project_tasks())
 
 def open_help_window():
     #create a popup window
@@ -400,9 +428,8 @@ def open_help_window():
 
     help_text.pack()
 
-blink_loading_text()
-#after 3 seconds delete frog and text
-root.after(3000, lambda: canvas.delete(frog_smiling_face))
-root.after(3000, lambda: canvas.delete(eat_the_frog_text))
+
+
 # start the main loop of the GUI
+
 root.mainloop()
