@@ -10,7 +10,10 @@ dot_gap = 10  # gap between each dot and task
 text_gap = 20  # gap between each task and text
 line_height = 30  # height of each line
 root = tk.Tk()
-
+#import Inbox class from inbox.py
+from inbox import Inbox
+#import Note class from note.py
+from note import Note
 
 def close_window(event=None):
     # destroy the root window
@@ -190,7 +193,7 @@ def start_timer(timer_label, popup):
         #if time is up, show a happy frog that says "Time's up!"
         if time <= 1:
             popup_canvas = popup.winfo_children()[0]
-            popup_canvas.create_text(350, 200, text="ðŸ˜Š", fill="green", font=("Arial", 100),
+            popup_canvas.create_text(350, 200, text="😊", fill="green", font=("Arial", 100),
                                      anchor=tk.CENTER)
             time_up_text = popup_canvas.create_text(350, 300, text="Time's up!", fill="green", font=("Arial", 30),
                                               anchor=tk.CENTER)
@@ -210,7 +213,7 @@ def draw_tasks():
     canvas.delete("all")
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
-        canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        canvas.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
         # draw a text under the check mark saying "No tasks"
         canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
@@ -283,7 +286,7 @@ def draw_tasks():
         # if one of the categories is Projects
         if "Projects" in category:
             # draw a "Projects headline" if this is the first of the tasks with category Projects
-            canvas.create_text(x3 + 480, y3, text="â˜…", fill="gold", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 480, y3, text="★", fill="gold", font=("Arial", 12), anchor=tk.W)
 
         # if task is drawn out of the canvas
         if y3 > 800:
@@ -315,20 +318,20 @@ def draw_due_date_tasks(task, x3, y3):
         due_date = datetime.datetime.strptime(task.DueDate.strftime("%d/%m/%Y"), "%d/%m/%Y")
 
         if due_date < datetime.datetime.today() and task.Status != 2:
-            canvas.create_text(x3 + 440, y3, text="âš ", fill="red", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 440, y3, text="⚠", fill="red", font=("Arial", 12), anchor=tk.W)
         # if task is due today draw orange exclamation mark on the right to the text
         if due_date == datetime.datetime.today() and task.Status != 2:
-            canvas.create_text(x3 + 440, y3, text="âš ", fill="orange", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 440, y3, text="⚠", fill="orange", font=("Arial", 12), anchor=tk.W)
         # if task is due tomorrow draw yellow exclamation mark on the right to the text
         if due_date == datetime.datetime.today() + datetime.timedelta(days=1) and task.Status != 2:
-            canvas.create_text(x3 + 440, y3, text="âš ", fill="yellow", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 440, y3, text="⚠", fill="yellow", font=("Arial", 12), anchor=tk.W)
         # if task is due next week draw green exclamation mark on the right to the text
         if due_date == datetime.datetime.today() + datetime.timedelta(days=7) and task.Status != 2:
-            canvas.create_text(x3 + 440, y3, text="âš ", fill="green", font=("Arial", 9), anchor=tk.W)
+            canvas.create_text(x3 + 440, y3, text="⚠", fill="green", font=("Arial", 9), anchor=tk.W)
 
         # if task is complete draw a check mark on the right side of the due date text
         if task.Status == 2:
-            canvas.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
 
 
 def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_tasks=False,
@@ -402,7 +405,7 @@ def mark_done(event, task):
     # Change its fill color to gold
     canvas.itemconfig(item, fill="gold")
     # draw a check mark on the right side of the task text
-    canvas.create_text(event.x + 310, event.y, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
+    canvas.create_text(event.x + 310, event.y, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
 
     task.Save()
     canvas.itemconfig(item, fill="gold")
@@ -671,23 +674,23 @@ def generate_html_file():
 
 def generate_dots_and_subjects(category, finished_date, html_file, subject, task):
     if task.Status == 2:
-        html_file.write("<span style='color:green; font-size:40px'>âœ“</span> ")
+        html_file.write("<span style='color:green; font-size:40px'>✓</span> ")
     if category == "A":
         # write big dot and then subject and finished date
         html_file.write(
-            "<span style='color:red; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:red; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "B":
         html_file.write(
-            "<span style='color:yellow; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:yellow; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "C":
         html_file.write(
-            "<span style='color:green; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:green; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     else:
         html_file.write(
-            "<span style='color:gold; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:gold; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     # if the task has a body print it in small grey nice formatted letters under the task subject with space before and after
     if task.Body is not None:
@@ -720,8 +723,18 @@ def open_help_window():
 
     help_text.pack()
 
-
+def load_inbox():
+    inbox = Inbox()
 # add generate html file button to ctrl+g
+
+def load_note_input():
+    #create new window
+    note_input_window = tk.Toplevel(root)
+    note = Note(note_input_window)
+    note.run()
+    #focus note window
+    note.focus_note_content()
+
 
 # add file menu to root
 menu_bar = tk.Menu(root)
@@ -741,6 +754,13 @@ file_menu.add_command(label="Show only category B", command=lambda: show_only_th
 file_menu.add_command(label="Show only category C", command=lambda: show_only_this_category("C"))
 #add file menu to show_all_tasks
 file_menu.add_command(label="Show all tasks", command=lambda: load_tasks(show_all_tasks=True))
+#add file menu to load Inbox class
+file_menu.add_command(label="Load Inbox", command=lambda: load_inbox())
+#add file menu to load Note class
+file_menu.add_command(label="Load Note", command=lambda: load_note_input())
+#bind i to inbox
+root.bind("i", lambda event: load_inbox())
+
 # add file menu to root
 root.config(menu=menu_bar)
 #on focus or click or maximize reload the tasks
