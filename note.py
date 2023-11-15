@@ -1,7 +1,3 @@
-import tkinter as tk
-import win32com.client as win32
-
-
 # Create a Note class
 class Note:
     def __init__(self, window=None):
@@ -43,8 +39,8 @@ class Note:
 
     # Define a function to save the note in Outlook
     def save_note(self):
-        # Get the note content from the text widget
-        note_content = self.text.get("1.0")
+        # Get the note content from all the text from the first character to the last character excluding the newline
+        note_content = self.text.get("1.0", "end-1c")
         # Get the selected category from the option menu
         note_category = self.selected_category.get()
         # Create an Outlook application object
