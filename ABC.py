@@ -33,10 +33,42 @@ root.config(bg="white")
 root.title("Eat the frog")
 # make root window full screen
 root.state("zoomed")
+
+
+def create_filter_buttons():
+    frame = tk.Frame(root)
+    frame.config(bg="white")
+    frame.pack(side=tk.TOP)
+    a_filter_button = tk.Button(frame)
+    a_filter_button.config(text="A", bg="white", command=lambda: load_tasks(show_only_this_category="A"))
+    a_filter_button.pack(side=tk.LEFT)
+    b_filter_button = tk.Button(frame)
+    b_filter_button.config(text="B", bg="white", command=lambda: load_tasks(show_only_this_category="B"))
+    b_filter_button.pack(side=tk.LEFT)
+    c_filter_button = tk.Button(frame)
+    c_filter_button.config(text="C", bg="white", command=lambda: load_tasks(show_only_this_category="C"))
+    c_filter_button.pack(side=tk.LEFT)
+    all_button = tk.Button(frame)
+    all_button.config(text="All", bg="white", command=lambda: load_tasks())
+    all_button.pack(side=tk.LEFT)
+    projects_button = tk.Button(frame)
+    projects_button.config(text="Projects", bg="white", command=lambda: load_tasks(show_only_this_category="Projects"))
+    projects_button.pack(side=tk.LEFT)
+
+
+
+#add three buttons on top of the canvas
+create_filter_buttons()
+# add a button to create a new note
+
+
+#add small notes button next to
 # create a canvas to draw on
 canvas = tk.Canvas(root)
 # make the canvas fill the root window
 canvas.pack(fill=tk.BOTH, expand=True)
+#above canvas put a small button that loads the inbox
+
 
 # add status bar to root
 status_bar = tk.Label(root, text="Ready", bd=1, relief=tk.SUNKEN, anchor=tk.W)
@@ -385,7 +417,7 @@ def search_tasks(subject, body, search_results_listbox, popup):
     for task_item in search_results:
         # if task is done draw a green check mark on the right side of the task text
         if task_item.Status == 2:
-            search_results_listbox.insert(tk.END, task_item.Subject + " âœ“")
+            search_results_listbox.insert(tk.END, task_item.Subject + " ✓")
         else:
             search_results_listbox.insert(tk.END, task_item.Subject)
 
@@ -424,7 +456,7 @@ def start_timer(timer_label, popup):
         # if time is up, show a happy frog that says "Time's up!"
         if time <= 1:
             popup_canvas = popup.winfo_children()[0]
-            popup_canvas.create_text(350, 200, text="ðŸ˜Š", fill="green", font=("Arial", 100),
+            popup_canvas.create_text(350, 200, text="😊", fill="green", font=("Arial", 100),
                                      anchor=tk.CENTER)
             time_up_text = popup_canvas.create_text(350, 300, text="Time's up!", fill="green", font=("Arial", 30),
                                                     anchor=tk.CENTER)
@@ -484,7 +516,7 @@ def draw_tasks():
     loading_icon()
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
-        canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        canvas.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
         # draw a text under the check mark saying "No tasks"
         canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
@@ -554,7 +586,7 @@ def draw_tasks():
         # if one of the categories is Projects
         if "Projects" in category:
             # draw a "Projects headline" if this is the first of the tasks with category Projects
-            canvas.create_text(x3 + 480, y3, text="â˜…", fill="gold", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 480, y3, text="★", fill="gold", font=("Arial", 12), anchor=tk.W)
 
         # if task is drawn out of the canvas
         if y3 > 800:
@@ -667,7 +699,7 @@ def draw_tasks_with_icons(task, x3, y3):
     # if task has body text
     if task.Body != "":
         # draw a paperclip icon on the right side of the task text
-        paperclip = canvas.create_text(x3 + 400, y3, text="ðŸ“Ž", fill="grey", font=("Arial", 12), anchor=tk.W)
+        paperclip = canvas.create_text(x3 + 400, y3, text="📎", fill="grey", font=("Arial", 12), anchor=tk.W)
         # when double clicking the paperclip icon open the body popup
         canvas.tag_bind(paperclip, "<Double-Button-1>", lambda event, task=task: show_task_body(event, task))
 
@@ -699,7 +731,7 @@ def draw_tasks_with_icons(task, x3, y3):
 
         # if task is complete draw a check mark on the right side of the due date text
         if task.Status == 2:
-            canvas.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
 
 
 # make function to export tasks on canvas sql database
@@ -889,7 +921,7 @@ def mark_done(event, task):
     # Change its fill color to gold
     canvas.itemconfig(item, fill="gold")
     # draw a check mark on the right side of the task text
-    canvas.create_text(event.x + 310, event.y, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
+    canvas.create_text(event.x + 310, event.y, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
 
     task.Save()
     canvas.itemconfig(item, fill="gold")
@@ -1223,23 +1255,23 @@ def generate_html_file():
 
 def generate_dots_and_subjects(category, finished_date, html_file, subject, task):
     if task.Status == 2:
-        html_file.write("<span style='color:green; font-size:40px'>âœ“</span> ")
+        html_file.write("<span style='color:green; font-size:40px'>✓</span> ")
     if category == "A":
         # write big dot and then subject and finished date
         html_file.write(
-            "<span style='color:red; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:red; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "B":
         html_file.write(
-            "<span style='color:yellow; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:yellow; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "C":
         html_file.write(
-            "<span style='color:green; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:green; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     else:
         html_file.write(
-            "<span style='color:gold; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:gold; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     # if the task has a body print it in small grey nice formatted letters under the task subject with space before and after
     if task.Body is not None:
@@ -1307,51 +1339,74 @@ def load_note_input():
     note.focus_note_content()
 
 
-# add file menu to root
-menu_bar = tk.Menu(root)
-# add file menu to menu bar
-file_menu = tk.Menu(menu_bar, tearoff=0)
-# add file menu to menu bar
-menu_bar.add_cascade(label="File", menu=file_menu)
-# add generate html file to file menu
-file_menu.add_command(label="Finished report", command=generate_html_file)
-# add export tasks with actual work to excel file
-file_menu.add_command(label="Export tasks with actual work to excel", command=export_tasks_to_excel)
-# export tasks to sqlite database
-file_menu.add_command(label="Export tasks to sqlite database", command=export_tasks_to_sqlite)
-#import tasks from sqlite database
-file_menu.add_command(label="Import tasks from sqlite database", command=import_tasks_from_sqlite)
+def add_menus():
+    global menu_bar
+    # add file menu to root
+    menu_bar = tk.Menu(root)
+    # add file menu to menu bar
+    file_menu = tk.Menu(menu_bar, tearoff=0)
+    # add file menu to menu bar
+    menu_bar.add_cascade(label="File", menu=file_menu)
+    #add sub menu for exporting stuff
+    export_menu = tk.Menu(file_menu, tearoff=0)
+    # add export menu to file menu
+    file_menu.add_cascade(label="Export", menu=export_menu)
+    # add export tasks with actual work to excel file
+    export_menu.add_command(label="Tasks with actual work to excel", command=export_tasks_to_excel)
+    # export tasks to sqlite database
+    export_menu.add_command(label="Tasks to sqlite database", command=export_tasks_to_sqlite)
+    # import tasks from sqlite database
+    export_menu.add_command(label="Tasks from sqlite database", command=import_tasks_from_sqlite)
+    # add generate html file to file menu
+    export_menu.add_command(label="HTML-file with done tasks", command=lambda: generate_html_file())
 
-# add exit to file menu
-file_menu.add_command(label="Exit", command=root.destroy)
-# add show only category A to file menu
-file_menu.add_command(label="Show only category A", command=lambda: show_only_this_category("A"))
-# add show only category B to file menu
-file_menu.add_command(label="Show only category B", command=lambda: show_only_this_category("B"))
-# add show only category C to file menu
-file_menu.add_command(label="Show only category C", command=lambda: show_only_this_category("C"))
-# add file menu to show_all_tasks
-file_menu.add_command(label="Show all tasks", command=lambda: load_tasks(show_all_tasks=True))
-# add file menu to load Inbox class
-file_menu.add_command(label="Load Inbox", command=lambda: load_inbox())
-# add file menu to load Note class
-file_menu.add_command(label="Load Note", command=lambda: load_note_input())
-# bind CTRL+F to load search tasks
-root.bind("<Control-f>", lambda event: search_tasks_popup())
-# add new search menu
-search_menu = tk.Menu(menu_bar, tearoff=0)
-# add search menu to menu bar
-menu_bar.add_cascade(label="Search", menu=search_menu)
-# on click on search menu cascade open search tasks popup
-search_menu.add_command(label="Search tasks", command=lambda: search_tasks_popup())
-# add command to search for notes
-search_menu.add_command(label="Search notes", command=lambda: search_notes_popup())
-# add help menu
-help_menu = tk.Menu(menu_bar, tearoff=0)
-# add help menu to menu bar
-menu_bar.add_cascade(label="Help", menu=help_menu)
-# on click on help menu cascade open help window
-help_menu.add_command(label="Help", command=lambda: open_help_window())
+    #add separator
+    file_menu.add_separator()
+    # add exit to file menu
+
+    #Add new menu for showing tasks
+    show_tasks_menu = tk.Menu(menu_bar, tearoff=0)
+    #add show tasks menu to menu bar
+    menu_bar.add_cascade(label="Show tasks", menu=show_tasks_menu)
+    # add show tasks menu to file menu
+    # add show all tasks to show tasks menu
+    show_tasks_menu.add_command(label="Show all tasks", command=lambda: load_tasks(show_all_tasks=True))
+    # add show tasks finished today to show tasks menu
+    show_tasks_menu.add_command(label="Show tasks finished today", command=lambda: load_tasks(show_tasks_finished_today=True))
+    # add show only category A to show tasks menu
+    show_tasks_menu.add_command(label="Show only category A", command=lambda: load_tasks(show_only_this_category="A"))
+    # add show only category B to show tasks menu
+    show_tasks_menu.add_command(label="Show only category B", command=lambda: load_tasks(show_only_this_category="B"))
+    # add show only category C to show tasks menu
+    show_tasks_menu.add_command(label="Show only category C", command=lambda: load_tasks(show_only_this_category="C"))
+    # add show only category C to show tasks menu
+    show_tasks_menu.add_command(label="Show only project tasks", command=lambda: load_tasks(show_projects=True))
+
+    # add file menu to load Inbox class
+    file_menu.add_command(label="Load Inbox", command=lambda: load_inbox())
+    # add file menu to load Note class
+    file_menu.add_command(label="Load Note", command=lambda: load_note_input())
+    file_menu.add_command(label="Exit", command=root.destroy)
+    # bind CTRL+F to load search tasks
+    root.bind("<Control-f>", lambda event: search_tasks_popup())
+    # add new search menu
+    search_menu = tk.Menu(menu_bar, tearoff=0)
+    # add search menu to menu bar
+    menu_bar.add_cascade(label="Search", menu=search_menu)
+    # on click on search menu cascade open search tasks popup
+    search_menu.add_command(label="Search tasks", command=lambda: search_tasks_popup())
+    # add command to search for notes
+    search_menu.add_command(label="Search notes", command=lambda: search_notes_popup())
+    # add help menu
+    help_menu = tk.Menu(menu_bar, tearoff=0)
+    # add help menu to menu bar
+    menu_bar.add_cascade(label="Help", menu=help_menu)
+    # on click on help menu cascade open help window
+    help_menu.add_command(label="Help", command=lambda: open_help_window())
+
+
+
+add_menus()
 
 # bind i to inbox
 root.bind("i", lambda event: load_inbox())
