@@ -1,5 +1,7 @@
 # import datetime with today
 import datetime
+import os
+import sqlite3
 from tkinter import messagebox, filedialog
 
 import win32com.client
@@ -44,6 +46,7 @@ status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 scrollbar = tk.Scrollbar(canvas)
 scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
+
 def convert_seconds_to_string(seconds):
     # if seconds is 0 or less or None or empty string
     if seconds is None or seconds == "" or seconds <= 0:
@@ -55,6 +58,7 @@ def convert_seconds_to_string(seconds):
         # convert the time worked to a string of HH:MM:SS
         time_worked = time_worked.strftime("%H:%M:%S")
     return time_worked
+
 
 def open_timer_window(event, task):
     # create a popup window
@@ -166,20 +170,19 @@ def close_popup_and_save_time_in_task(event, popup, task):
     worked_time = popup.worked_time
     # convert worked time in seconds to minutes
     worked_time_minutes = worked_time // 60
-    #if worked time is 0
+    # if worked time is 0
     if worked_time_minutes < 1:
-        #show message box to ask if user wants to save time in task
+        # show message box to ask if user wants to save time in task
         if messagebox.askyesno("Save time in task?", "Do you want to save time in task?"):
-            #set worked time to 1 minute
+            # set worked time to 1 minute
             worked_time_minutes = 1
-
 
     task.ActualWork = set_task_actual_work(task, worked_time_minutes)
     task.TotalWork = calculate_total_work_left(task)
     task.PercentComplete = calculate_percentage_of_task_done(task)
-    #close popup and save time in task
+    # close popup and save time in task
     popup.destroy()
-    #focus root
+    # focus root
     root.focus_set()
 
     # update main window tasks
@@ -187,7 +190,8 @@ def close_popup_and_save_time_in_task(event, popup, task):
     # save task
     task.Save()
 
-#create a popup to search notes
+
+# create a popup to search notes
 def search_notes_popup():
     # create a popup window
     popup = tk.Toplevel(root)
@@ -221,23 +225,26 @@ def search_notes_popup():
     body_entry.config(width=30)
     body_entry.grid(row=1, column=1, padx=10, pady=10)
 
-    #create search results listbox
+    # create search results listbox
     search_results_listbox = tk.Listbox(frame, width=50, height=10)
     search_results_listbox.grid(row=3, column=0, padx=10, pady=10)
-    #make search results listbox nice font
+    # make search results listbox nice font
     search_results_listbox.config(font=("Tahoma", 10))
-    #bind list box double click to open note in outlook
+    # bind list box double click to open note in outlook
     search_results_listbox.bind("<Double-Button-1>", lambda event: open_task_in_outlook(event, search_results_listbox))
 
-    #create a search button and bind it to search_notes function
+    # create a search button and bind it to search_notes function
     search_button = tk.Button(frame)
-    search_button.config(text="Search", bg="white", command=lambda: search_notes(subject_entry.get(), body_entry.get(), search_results_listbox))
+    search_button.config(text="Search", bg="white",
+                         command=lambda: search_notes(subject_entry.get(), body_entry.get(), search_results_listbox,
+                                                      popup))
     search_button.grid(row=2, column=0, padx=10, pady=10)
 
-def search_notes(subject, body, search_results_listbox):
-    #display hour glass cursor while searching
-    root.config(cursor="wait")
+
+def search_notes(subject, body, search_results_listbox, popup):
+    # display hour glass cursor while searching
     # create an Outlook application object
+    loading_icon(popup)
     outlook = win32com.client.Dispatch("Outlook.Application")
     # get the namespace object
     namespace = outlook.GetNamespace("MAPI")
@@ -250,7 +257,7 @@ def search_notes(subject, body, search_results_listbox):
     for note in notes:
         # get the category of the note
         # if note subject contains subject
-        #is subject is not empty and in note subject
+        # is subject is not empty and in note subject
         if subject != "" and subject.casefold() in note.Subject:
             # add note to list
             search_results.append(note)
@@ -259,19 +266,20 @@ def search_notes(subject, body, search_results_listbox):
             search_results.append(note)
 
     # sort the list by category in ascending order
-    #update search results listbox
+    # update search results listbox
     search_results_listbox.delete(0, tk.END)
     for note in search_results:
         search_results_listbox.insert(tk.END, note.Subject)
 
     search_results_listbox.search_results = search_results
-    #if no results found display message
+    # if no results found display message
     if len(search_results) == 0:
         search_results_listbox.insert(tk.END, "No results found")
 
-    #display normal cursor after searching
-    root.config(cursor="")
+    # display normal cursor after searching
+    reset_loading_icon(popup)
     return search_results
+
 
 # create popup with a search box that searches for tasks by subject and body
 def search_tasks_popup():
@@ -307,35 +315,35 @@ def search_tasks_popup():
     body_entry.config(width=30)
     body_entry.grid(row=1, column=1, padx=10, pady=10)
 
-
     # create a search button
     search_button = tk.Button(frame)
-    search_button.config(text="Search", bg="white", command=lambda: search_tasks(subject_entry.get(), body_entry.get()))
+    search_button.config(text="Search", bg="white",
+                         command=lambda: search_tasks(subject_entry.get(), body_entry.get(), search_results_listbox,
+                                                      popup))
     search_button.grid(row=2, column=0, padx=10, pady=10)
 
-    #list box to display search results
+    # list box to display search results
     search_results_listbox = tk.Listbox(frame, width=50, height=10)
     search_results_listbox.grid(row=3, column=0, padx=10, pady=10)
-    #make search results listbox nice font
+    # make search results listbox nice font
     search_results_listbox.config(font=("Tahoma", 10))
 
-    #when pressing search button search for tasks
-    search_button.config(command=lambda: search_tasks(subject_entry.get(), body_entry.get(), search_results_listbox))
+    # when pressing enter in subject entry search for tasks
+    subject_entry.bind("<Return>",
+                       lambda event: search_tasks(subject_entry.get(), body_entry.get(), search_results_listbox, popup))
+    # when pressing enter in body entry search for tasks
+    body_entry.bind("<Return>",
+                    lambda event: search_tasks(subject_entry.get(), body_entry.get(), search_results_listbox, popup))
 
-    #when pressing enter in subject entry search for tasks
-    subject_entry.bind("<Return>", lambda event: search_tasks(subject_entry.get(), body_entry.get(), search_results_listbox))
-    #when pressing enter in body entry search for tasks
-    body_entry.bind("<Return>", lambda event: search_tasks(subject_entry.get(), body_entry.get(), search_results_listbox))
-
-    #focus subject entry on load
+    # focus subject entry on load
     subject_entry.focus_set()
 
-    #when clickin task in search results listbox open task in outlook
+    # when clickin task in search results listbox open task in outlook
     search_results_listbox.bind("<Double-Button-1>", lambda event: open_task_in_outlook(event, search_results_listbox))
 
 
 def open_task_in_outlook(event, search_results_listbox):
-    #get task from current index
+    # get task from current index
     index = search_results_listbox.curselection()
     # If there is an item selected
     if index and index[0] >= 0 and index[0] < len(search_results_listbox.search_results):
@@ -345,9 +353,10 @@ def open_task_in_outlook(event, search_results_listbox):
     else:
         return None
 
-def search_tasks(subject, body, search_results_listbox):
-    #display hour glass cursor while searching
-    root.config(cursor="wait")
+
+def search_tasks(subject, body, search_results_listbox, popup):
+    # display hour glass cursor while searching
+    loading_icon(popup)
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
     # get the namespace object
@@ -357,35 +366,35 @@ def search_tasks(subject, body, search_results_listbox):
     # get all the tasks in the folder
     tasks = tasks_folder.Items
     search_results = []
-    # loop through the tasks and check their subject or body
-    for task in tasks:
+    # loop through all the tasks and check their subject or body
+    for task_item in tasks:
         # get the category of the task
         # if task subject contains subject
-        #is subject is not empty and in task subject
-        if subject != "" and subject.casefold() in task.Subject:
+        # is subject is not empty and in task subject, ignore case
+        if subject != "" and subject.casefold() in task_item.Subject.casefold():
             # add task to list
-            search_results.append(task)
-        if body != "" and body.casefold() in task.Body:
+            search_results.append(task_item)
+        #is body is not empty and in task body, ignore case
+        if body != "" and body.casefold() in task_item.Body.casefold():
             # add task to list
-            search_results.append(task)
+            search_results.append(task_item)
 
     # sort the list by category in ascending order
-    #update search results listbox
+    # update search results listbox
     search_results_listbox.delete(0, tk.END)
-    for task in search_results:
-        #if task is done draw a green check mark on the right side of the task text
-        if task.Status == 2:
-            search_results_listbox.insert(tk.END, task.Subject + " ✓")
+    for task_item in search_results:
+        # if task is done draw a green check mark on the right side of the task text
+        if task_item.Status == 2:
+            search_results_listbox.insert(tk.END, task_item.Subject + " âœ“")
         else:
-            search_results_listbox.insert(tk.END, task.Subject)
+            search_results_listbox.insert(tk.END, task_item.Subject)
 
     search_results_listbox.search_results = search_results
-    #if no results found display message
+    # if no results found display message
     if len(search_results) == 0:
         search_results_listbox.insert(tk.END, "No results found")
 
-    #display normal cursor after searching
-    root.config(cursor="")
+    reset_loading_icon(popup)
     return search_results
 
 
@@ -415,7 +424,7 @@ def start_timer(timer_label, popup):
         # if time is up, show a happy frog that says "Time's up!"
         if time <= 1:
             popup_canvas = popup.winfo_children()[0]
-            popup_canvas.create_text(350, 200, text="😊", fill="green", font=("Arial", 100),
+            popup_canvas.create_text(350, 200, text="ðŸ˜Š", fill="green", font=("Arial", 100),
                                      anchor=tk.CENTER)
             time_up_text = popup_canvas.create_text(350, 300, text="Time's up!", fill="green", font=("Arial", 30),
                                                     anchor=tk.CENTER)
@@ -429,33 +438,53 @@ def start_timer(timer_label, popup):
 
     update_timer()
 
+
+def save_body(body_text, task, popup):
+    # get body text from text widget
+    body = body_text.get(1.0, tk.END)
+    # set task body to body text
+    task.Body = body
+    # save task
+    task.Save()
+    # destroy popup
+    popup.destroy()
+
+
 def show_task_body(event, task):
     # create a popup window
     popup = tk.Toplevel(root)
-    popup.title("Task Body")
+    popup.title("Task body")
     popup.config(bg="white")
     popup.geometry("600x400")
-    popup.resizable(False, False)
-
+    # popup.resizable(False, False)
     # create a frame to hold the widgets
     frame = tk.Frame(popup)
     frame.config(bg="white")
     frame.pack(fill=tk.BOTH)
 
-    # create a label to display the task body
-    body_label = tk.Label(frame)
-    body_label.config(text=task.Body, bg="white", wraplength=500)
-    body_label.grid(row=0, column=0, padx=10, pady=10)
+    # create a text widget to display the task body
+    body_text = tk.Text(frame)
+    body_text.config(width=50, height=10)
+    body_text.grid(row=0, column=0, padx=10, pady=10)
+    # insert task body into text widget
+    body_text.insert(tk.END, task.Body)
 
-    #set body_label text to task body
-    body_label.config(text=task.Body)
+    # show
+
+    # add a save button under the text widget
+    save_button = tk.Button(frame)
+    save_button.config(text="Save", bg="white", command=lambda: save_body(body_text, task, popup))
+    save_button.grid(row=1, column=0, padx=10, pady=10)
+
 
 def draw_tasks():
     # clear
     canvas.delete("all")
+    # display hour glass cursor while loading tasks
+    loading_icon()
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
-        canvas.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
         # draw a text under the check mark saying "No tasks"
         canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
@@ -501,7 +530,7 @@ def draw_tasks():
         dot = canvas.create_oval(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius, fill=color,
 
                                  outline=color)
-        #mark done on left click
+        # mark done on left click
         canvas.tag_bind(dot, "<Button-1>", lambda event, task=task: mark_done(event, task))
         # when double clicking the dot open the task in outlook
         canvas.tag_bind(dot, "<Double-Button-1>", lambda event, task=task: task.Display())
@@ -513,11 +542,9 @@ def draw_tasks():
         canvas.tag_bind(task_text, "<Double-Button-1>", lambda event, task=task: task.Display())
         # when mouse wheel clicking the task text open a timer window
         canvas.tag_bind(task_text, "<Button-2>", lambda event, task=task: open_timer_window(event, task))
-        #when left clicking the task text open a popup window to show the body of the task
-
+        # when left clicking the task text open a popup window to show the body of the task
 
         # if task has ActualWork, TotalWork, and PercentComplete, draw it under the task text, next to the due date
-
 
         # if task is completed draw light green check mark on the right to the text
 
@@ -527,7 +554,7 @@ def draw_tasks():
         # if one of the categories is Projects
         if "Projects" in category:
             # draw a "Projects headline" if this is the first of the tasks with category Projects
-            canvas.create_text(x3 + 480, y3, text="★", fill="gold", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 480, y3, text="â˜…", fill="gold", font=("Arial", 12), anchor=tk.W)
 
         # if task is drawn out of the canvas
         if y3 > 800:
@@ -547,7 +574,21 @@ def draw_tasks():
         else:
             canvas.config(scrollregion=(0, 0, 0, 0))
 
-#make function that exports all tasks with actual work to an excel file but does not open excel
+    # display normal cursor after loading tasks
+    reset_loading_icon()
+
+
+def loading_icon(window=root):
+    window.config(cursor="watch")
+    window.update()
+
+
+def reset_loading_icon(window=root):
+    window.config(cursor="")
+    window.update()
+
+
+# make function that exports all tasks with actual work to an excel file but does not open excel
 def export_tasks_to_excel():
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
@@ -570,29 +611,29 @@ def export_tasks_to_excel():
 
     # sort the list by category in ascending order
     tasks_by_category.sort(key=lambda x: x[1])
-    #create excel file
+    # create excel file
     excel = win32com.client.Dispatch("Excel.Application")
     excel.Visible = False
-    #create a new workbook
+    # create a new workbook
     workbook = excel.Workbooks.Add()
-    #create a new worksheet
+    # create a new worksheet
     worksheet = workbook.Worksheets.Add()
-    #set worksheet name to "Tasks"
+    # set worksheet name to "Tasks"
     worksheet.Name = "Tasks"
-    #set worksheet header
+    # set worksheet header
     worksheet.Cells(1, 1).Value = "Subject"
     worksheet.Cells(1, 2).Value = "Actual Work"
     worksheet.Cells(1, 3).Value = "Total Work"
     worksheet.Cells(1, 4).Value = "Percent Complete"
     worksheet.Cells(1, 5).Value = "Due Date"
-    #loop through tasks and add them to excel file
+    # loop through tasks and add them to excel file
     for i, (task, category) in enumerate(tasks_by_category):
         # get the task subject and due date
         subject = task.Subject
         due_date = task.DueDate
 
         # add task to list
-        #if task is category A, B, or C, make subject cell background red, yellow, or green
+        # if task is category A, B, or C, make subject cell background red, yellow, or green
         if category == "A":
             worksheet.Cells(i + 2, 1).Interior.ColorIndex = 3
         elif category == "B":
@@ -600,33 +641,34 @@ def export_tasks_to_excel():
         elif category == "C":
             worksheet.Cells(i + 2, 1).Interior.ColorIndex = 4
 
-        #add task to excel file
+        # add task to excel file
         worksheet.Cells(i + 2, 1).Value = subject
         worksheet.Cells(i + 2, 2).Value = task.ActualWork
         worksheet.Cells(i + 2, 3).Value = task.TotalWork
         worksheet.Cells(i + 2, 4).Value = task.PercentComplete
         worksheet.Cells(i + 2, 5).Value = due_date
-        #change cell width to fit text
+        # change cell width to fit text
         worksheet.Cells(i + 2, 1).ColumnWidth = subject.__len__() + 5
         worksheet.Cells(i + 2, 2).ColumnWidth = 15
         worksheet.Cells(i + 2, 3).ColumnWidth = 15
         worksheet.Cells(i + 2, 4).ColumnWidth = 15
         worksheet.Cells(i + 2, 5).ColumnWidth = 15
 
-
-    #save excel file
-    #close excel file
-    #workbook.Close()
-    #open excel file
+    # save excel file
+    # close excel file
+    # workbook.Close()
+    # open excel file
     excel.Visible = True
-    #quit excel
-    #excel.Quit()
+    # quit excel
+    # excel.Quit()
+
+
 def draw_tasks_with_icons(task, x3, y3):
-    #if task has body text
+    # if task has body text
     if task.Body != "":
-        #draw a paperclip icon on the right side of the task text
-        paperclip = canvas.create_text(x3 + 400, y3, text="📎", fill="grey", font=("Arial", 12), anchor=tk.W)
-        #when double clicking the paperclip icon open the body popup
+        # draw a paperclip icon on the right side of the task text
+        paperclip = canvas.create_text(x3 + 400, y3, text="ðŸ“Ž", fill="grey", font=("Arial", 12), anchor=tk.W)
+        # when double clicking the paperclip icon open the body popup
         canvas.tag_bind(paperclip, "<Double-Button-1>", lambda event, task=task: show_task_body(event, task))
 
     # if task has due date and due date is in the current year or the next
@@ -639,26 +681,135 @@ def draw_tasks_with_icons(task, x3, y3):
             text_color = "grey"
 
         canvas.create_text(x3, y3 + 15, text=task.DueDate.strftime("%d/%m/%Y"), fill=text_color, font=("Arial", 7),
-                               anchor=tk.W)
-
-        #draw actual work next to due date
-        canvas.create_text(x3 + 100, y3 + 15, text="Acutal: " + convert_seconds_to_string(task.ActualWork * 60), fill="grey", font=("Arial", 7),
-                           anchor=tk.W)
-        #draw estimated work next to actual work
-        canvas.create_text(x3 + 200, y3 + 15, text="Estimated: " + convert_seconds_to_string(task.TotalWork * 60), fill="grey", font=("Arial", 7),
                            anchor=tk.W)
 
-        #draw percentage of task done next to estimated work
-        canvas.create_text(x3 + 300, y3 + 15, text= "Progress: " +  str(task.PercentComplete) + "%", fill="grey", font=("Arial", 7),
+        # draw actual work next to due date
+        canvas.create_text(x3 + 100, y3 + 15, text="Acutal: " + convert_seconds_to_string(task.ActualWork * 60),
+                           fill="grey", font=("Arial", 7),
+                           anchor=tk.W)
+        # draw estimated work next to actual work
+        canvas.create_text(x3 + 200, y3 + 15, text="Estimated: " + convert_seconds_to_string(task.TotalWork * 60),
+                           fill="grey", font=("Arial", 7),
+                           anchor=tk.W)
+
+        # draw percentage of task done next to estimated work
+        canvas.create_text(x3 + 300, y3 + 15, text="Progress: " + str(task.PercentComplete) + "%", fill="grey",
+                           font=("Arial", 7),
                            anchor=tk.W)
 
         # if task is complete draw a check mark on the right side of the due date text
         if task.Status == 2:
-            canvas.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
+
+
+# make function to export tasks on canvas sql database
+def export_tasks_to_sqlite():
+    # file dialog for user to choose file name and location
+    file = filedialog.asksaveasfilename(defaultextension=".db", filetypes=[("SQLite database", "*.db")])
+    #
+    #check if file exists already
+    if os.path.exists(file):
+        # do you want to overwrite file?
+        overwrite_file = messagebox.askyesno("Overwrite file?", "Do you want to overwrite file?")
+        if overwrite_file:
+            # overwrite file
+            pass
+        else:
+            # return
+            return
+
+    # create database
+    conn = sqlite3.connect(file)
+    # create cursor
+    c = conn.cursor()
+
+    # create table if not exists
+    c.execute("""CREATE TABLE IF NOT EXISTS tasks (
+                subject text,
+                actual_work integer,
+                total_work integer,
+                percent_complete integer,
+                due_date text,
+                body text,
+                category text
+                )""")
+
+    # loop through tasks and add them to sqlite database
+    for task, category in tasks_by_category:
+        # get the task subject and due date
+        subject = task.Subject
+        due_date = task.DueDate
+        actual_work = task.ActualWork
+        total_work = task.TotalWork
+        percent_complete = task.PercentComplete
+        body = task.Body
+        category = task.Categories
+        # add task to sqlite database
+        # convert pywin32 datetime to sqlite datetime
+        due_date = datetime.datetime.strptime(due_date.strftime("%d/%m/%Y"), "%d/%m/%Y")
+        c.execute("INSERT INTO tasks VALUES (:subject, :actual_work, :total_work, :percent_complete, :due_date, :body, :category)",
+                  {"subject": subject, "actual_work": actual_work, "total_work": total_work,
+                   "percent_complete": percent_complete, "due_date": due_date, "body": body, "category": category})
+
+    # commit changes
+    conn.commit()
+    # close connection
+    conn.close()
+
+
+# make function to import tasks from sqlite database
+def import_tasks_from_sqlite():
+    # create database
+    # file dialog for user to choose file name and location
+    file = filedialog.askopenfilename(defaultextension=".db", filetypes=[("SQLite database", "*.db")])
+    #connect to database
+    conn = sqlite3.connect(file)
+
+    # create cursor
+    c = conn.cursor()
+    # get tasks from database
+    c.execute("SELECT * FROM tasks")
+    # loop through tasks and add them to outlook
+    for task in c.fetchall():
+        # create an Outlook application object
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        # get the namespace object
+        namespace = outlook.GetNamespace("MAPI")
+        # get the default folder for tasks
+        tasks_folder = namespace.GetDefaultFolder(13)
+        # get all the tasks in the folder
+        tasks = tasks_folder.Items
+        # create a new item of type task
+        imported_task = tasks.Add(3)
+        # set task to high priority
+        imported_task.Importance = 2
+        # set the subject
+        imported_task.Subject = task[0]
+        # set the due date
+        # set the category
+        # set due date to tomorrow
+        # get tomorrow's date
+        # set the reminder to tomorrow at 9 AM
+        imported_task.ReminderSet = True
+        imported_task.ActualWork = task[1]
+        imported_task.TotalWork = task[2]
+        imported_task.PercentComplete = task[3]
+        imported_task.DueDate = task[4]
+        imported_task.Body = task[5]
+        imported_task.Categories = task[6]
+        imported_task.Save()
+
+    # commit changes
+    conn.commit()
+    # close connection
+    conn.close()
+    load_tasks()
 
 
 def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_tasks=False,
                show_only_this_category=None):
+    # clear status bar
+    status_bar.config(text="")
     global tasks_by_category, task, category
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
@@ -673,6 +824,7 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
         # restrict tasks to tasks finished today
         tasks = tasks.Restrict(
             "[Complete] = True AND [DateCompleted] >= '" + datetime.datetime.today().strftime("%d/%m/%Y") + "'")
+        # show message in status bar that only tasks finished today are shown
     # if task are not finished today but not show all tasks
     elif not show_all_tasks:
         # filter tasks by not completed tasks
@@ -687,11 +839,15 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
         if show_only_this_category:
             # only append the category in the string show_only_this_category
             if category == show_only_this_category:
+                # show message in status bar that only this category is shown
+                status_bar.config(text="Showing only " + category + " tasks")
                 tasks_by_category.append((task, category))
                 continue
 
         # if show all tasks is true
         if show_all_tasks:
+            # show message in status bar that all tasks are shown
+            status_bar.config(text="Showing all tasks")
             # add task to list
             tasks_by_category.append((task, category))
             continue
@@ -703,6 +859,10 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
         else:
             if show_only_this_category is None:
                 if category == "A" or category == "B" or category == "C":
+                    if show_tasks_finished_today:
+                        status_bar.config(text="Showing A, B, and C tasks finished today")
+                    else:
+                        status_bar.config(text="Showing A, B, and C tasks")
                     # add task to list
                     tasks_by_category.append((task, category))
                 # add task to list
@@ -729,7 +889,7 @@ def mark_done(event, task):
     # Change its fill color to gold
     canvas.itemconfig(item, fill="gold")
     # draw a check mark on the right side of the task text
-    canvas.create_text(event.x + 310, event.y, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
+    canvas.create_text(event.x + 310, event.y, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
 
     task.Save()
     canvas.itemconfig(item, fill="gold")
@@ -739,7 +899,7 @@ def mark_done(event, task):
     root.after(3000, load_tasks)
 
 
-def save_task(subject, category, due_date, popup=None):
+def save_task(subject, category, due_date, create_calendar_event, popup=None):
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
     # get the namespace object
@@ -762,7 +922,48 @@ def save_task(subject, category, due_date, popup=None):
     # set the reminder to tomorrow at 9 AM
     task.ReminderSet = True
 
+    # check if create calendar event is checked
+    if create_calendar_event:
+        create_new_calendar_event_based_on_task(category, due_date, namespace, subject)
+
     # if due date is today
+    set_due_date_on_task(due_date, task)
+
+    # save the task in the tasks folder
+    task.Save()
+    # if popup is not None
+    if popup:
+        # destroy the popup
+        popup.destroy()
+    load_tasks()
+
+
+def create_new_calendar_event_based_on_task(category, due_date, namespace, subject):
+    # create a new calendar event
+    # get the default folder for calendar events
+    calendar_folder = namespace.GetDefaultFolder(9)
+    # get all the calendar events in the folder
+    calendar_events = calendar_folder.Items
+    # create a new item of type calendar event
+    calendar_event = calendar_events.Add(1)
+    # set the subject
+    calendar_event.Subject = subject
+    # if color of task is red, set calendar event to red
+    # save the calendar event in the calendar folder
+    # if category is A, set calendar event to red
+    if category == "A":
+        calendar_event.Categories = "A"
+    # if category is B, set calendar event to yellow
+    elif category == "B":
+        calendar_event.Categories = "B"
+    # if category is C, set calendar event to green
+    elif category == "C":
+        calendar_event.Categories = "C"
+    # if task has due date, set calendar event due date to task due date
+    set_date_on_calendar_event(calendar_event, due_date)
+
+
+def set_due_date_on_task(due_date, task):
     if due_date == "Today":
         # set start date to today
         task.StartDate = datetime.datetime.today()
@@ -793,13 +994,40 @@ def save_task(subject, category, due_date, popup=None):
         # 9 Am
         task.ReminderTime = task.ReminderTime.replace(hour=9, minute=0, second=0, microsecond=0)
 
-    # save the task in the tasks folder
-    task.Save()
-    # if popup is not None
-    if popup:
-        # destroy the popup
-        popup.destroy()
-    load_tasks()
+
+def set_date_on_calendar_event(calendar_event, due_date):
+    if due_date:
+        # if due date is today
+        if due_date == "Today":
+            # set start date to today
+            calendar_event.Start = datetime.datetime.today()
+            # set due date to today
+            calendar_event.AllDayEvent = True
+            # set reminder date
+            calendar_event.ReminderSet = True
+        # if due date is tomorrow, set the start date to tomorror and whole day event
+        elif due_date == "Tomorrow":
+            # set due date to tomorrow
+            calendar_event.Start = datetime.datetime.today() + datetime.timedelta(days=1)
+            calendar_event.AllDayEvent = True
+            # set reminder date
+            calendar_event.ReminderSet = True
+            # set reminder time to 9 AM tomorrow
+            calendar_event.ReminderMinutesBeforeStart = 15
+        # if due date is next week
+        elif due_date == "Next Week":
+            # set start date to next monday
+            # caluclate how many days until next monday
+            days_until_next_monday = 7 - datetime.datetime.today().weekday()
+            # make calendar event the whole day on next monday
+            next_monday = datetime.datetime.today() + datetime.timedelta(days=days_until_next_monday)
+            calendar_event.Start = next_monday
+            calendar_event.AllDayEvent = True
+            # set reminder date
+            calendar_event.ReminderSet = True
+            # set reminder to next_monday
+            calendar_event.ReminderMinutesBeforeStart = 15
+    calendar_event.Save()
 
 
 # create a new task in a popup window
@@ -872,10 +1100,19 @@ def create_new_task_popup():
     due_date_radio_button_next_week.config(text="Next Week", variable=due_date_var, value="Next Week", bg="white")
     due_date_radio_button_next_week.grid(row=1, column=3, padx=10, pady=10)
 
+    # checkbox to create a new calendar event with the same subject as the task and the same color as the category
+    create_calendar_event_checkbox = tk.Checkbutton(frame)
+    create_calendar_event_checkbox.config(text="Create calendar event", bg="white")
+    create_calendar_event_checkbox.grid(row=3, column=0, padx=10, pady=10)
+    # variable to store the checkbox value
+    create_calendar_event_var = tk.IntVar()
+    create_calendar_event_checkbox.config(variable=create_calendar_event_var)
+
     # create a button to save the task
     save_button = tk.Button(frame)
     save_button.config(text="Save",
-                       command=lambda: save_task(subject_entry.get(), category_var.get(), due_date_var.get(), popup),
+                       command=lambda: save_task(subject_entry.get(), category_var.get(), due_date_var.get(),
+                                                 create_calendar_event_var.get(), popup),
                        bg="white")
 
     # create a button to cancel the task
@@ -986,23 +1223,23 @@ def generate_html_file():
 
 def generate_dots_and_subjects(category, finished_date, html_file, subject, task):
     if task.Status == 2:
-        html_file.write("<span style='color:green; font-size:40px'>✓</span> ")
+        html_file.write("<span style='color:green; font-size:40px'>âœ“</span> ")
     if category == "A":
         # write big dot and then subject and finished date
         html_file.write(
-            "<span style='color:red; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:red; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "B":
         html_file.write(
-            "<span style='color:yellow; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:yellow; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "C":
         html_file.write(
-            "<span style='color:green; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:green; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     else:
         html_file.write(
-            "<span style='color:gold; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:gold; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     # if the task has a body print it in small grey nice formatted letters under the task subject with space before and after
     if task.Body is not None:
@@ -1018,33 +1255,45 @@ def open_help_window():
     popup.geometry("600x600")
     popup.resizable(False, False)
 
-    #create white canvas that fills the popup window
+    # create white canvas that fills the popup window
     canvas = tk.Canvas(popup)
     canvas.config(bg="white")
-    #make canvas fill height and width of popup window
+    # make canvas fill height and width of popup window
     canvas.pack(fill=tk.BOTH, expand=True)
 
-    #draw the help text
+    # draw the help text
     canvas.create_text(300, 50, text="Help", fill="black", font=("Arial", 20), anchor=tk.CENTER)
-    canvas.create_text(300, 100, text="Press ctrl+n to create a new task", fill="black", font=("Arial", 12), anchor=tk.CENTER)
-    canvas.create_text(300, 130, text="Press ctrl+r to reload the tasks", fill="black", font=("Arial", 12), anchor=tk.CENTER)
-    canvas.create_text(300, 160, text="Press ctrl+p to show project tasks", fill="black", font=("Arial", 12), anchor=tk.CENTER)
-    canvas.create_text(300, 190, text="Press ctrl+t to show tasks finished today", fill="black", font=("Arial", 12), anchor=tk.CENTER)
-    canvas.create_text(300, 220, text="Press ctrl+a to show only category A tasks", fill="black", font=("Arial", 12), anchor=tk.CENTER)
-    canvas.create_text(300, 250, text="Press ctrl+b to show only category B tasks", fill="black", font=("Arial", 12), anchor=tk.CENTER)
-    canvas.create_text(300, 280, text="Press ctrl+c to show only category C tasks", fill="black", font=("Arial", 12), anchor=tk.CENTER)
-    canvas.create_text(300, 310, text="Press ctrl+f to search tasks", fill="black", font=("Arial", 12), anchor=tk.CENTER)
+    canvas.create_text(300, 100, text="Press ctrl+n to create a new task", fill="black", font=("Arial", 12),
+                       anchor=tk.CENTER)
+    canvas.create_text(300, 130, text="Press ctrl+r to reload the tasks", fill="black", font=("Arial", 12),
+                       anchor=tk.CENTER)
+    canvas.create_text(300, 160, text="Press ctrl+p to show project tasks", fill="black", font=("Arial", 12),
+                       anchor=tk.CENTER)
+    canvas.create_text(300, 190, text="Press ctrl+t to show tasks finished today", fill="black", font=("Arial", 12),
+                       anchor=tk.CENTER)
+    canvas.create_text(300, 220, text="Press ctrl+a to show only category A tasks", fill="black", font=("Arial", 12),
+                       anchor=tk.CENTER)
+    canvas.create_text(300, 250, text="Press ctrl+b to show only category B tasks", fill="black", font=("Arial", 12),
+                       anchor=tk.CENTER)
+    canvas.create_text(300, 280, text="Press ctrl+c to show only category C tasks", fill="black", font=("Arial", 12),
+                       anchor=tk.CENTER)
+    canvas.create_text(300, 310, text="Press ctrl+f to search tasks", fill="black", font=("Arial", 12),
+                       anchor=tk.CENTER)
     canvas.create_text(300, 340, text="Press i to load Inbox", fill="black", font=("Arial", 12), anchor=tk.CENTER)
-    canvas.create_text(300, 370, text="Press ctrl+g to generate html file", fill="black", font=("Arial", 12), anchor=tk.CENTER)
+    canvas.create_text(300, 370, text="Press ctrl+g to generate html file", fill="black", font=("Arial", 12),
+                       anchor=tk.CENTER)
     canvas.create_text(300, 400, text="Right click dot to finish task", fill="black", font=("Arial", 12),
                        anchor=tk.CENTER)
     canvas.create_text(300, 430, text="Double click task text to open it in Outlook", fill="black", font=("Arial", 12),
                        anchor=tk.CENTER)
-    canvas.create_text(300, 460, text="Mouse wheel click task text or dot to start working timer", fill="black", font=("Arial", 12),
+    canvas.create_text(300, 460, text="Mouse wheel click task text or dot to start working timer", fill="black",
+                       font=("Arial", 12),
                        anchor=tk.CENTER)
 
+
 def load_inbox():
-    inbox = Inbox()
+    # create new window
+    inbox = Inbox(root)
 
 
 # add generate html file button to ctrl+g
@@ -1066,8 +1315,13 @@ file_menu = tk.Menu(menu_bar, tearoff=0)
 menu_bar.add_cascade(label="File", menu=file_menu)
 # add generate html file to file menu
 file_menu.add_command(label="Finished report", command=generate_html_file)
-#add export tasks with actual work to excel file
+# add export tasks with actual work to excel file
 file_menu.add_command(label="Export tasks with actual work to excel", command=export_tasks_to_excel)
+# export tasks to sqlite database
+file_menu.add_command(label="Export tasks to sqlite database", command=export_tasks_to_sqlite)
+#import tasks from sqlite database
+file_menu.add_command(label="Import tasks from sqlite database", command=import_tasks_from_sqlite)
+
 # add exit to file menu
 file_menu.add_command(label="Exit", command=root.destroy)
 # add show only category A to file menu
@@ -1082,21 +1336,21 @@ file_menu.add_command(label="Show all tasks", command=lambda: load_tasks(show_al
 file_menu.add_command(label="Load Inbox", command=lambda: load_inbox())
 # add file menu to load Note class
 file_menu.add_command(label="Load Note", command=lambda: load_note_input())
-#bind CTRL+F to load search tasks
+# bind CTRL+F to load search tasks
 root.bind("<Control-f>", lambda event: search_tasks_popup())
-#add new search menu
+# add new search menu
 search_menu = tk.Menu(menu_bar, tearoff=0)
-#add search menu to menu bar
+# add search menu to menu bar
 menu_bar.add_cascade(label="Search", menu=search_menu)
-#on click on search menu cascade open search tasks popup
+# on click on search menu cascade open search tasks popup
 search_menu.add_command(label="Search tasks", command=lambda: search_tasks_popup())
-#add command to search for notes
+# add command to search for notes
 search_menu.add_command(label="Search notes", command=lambda: search_notes_popup())
-#add help menu
+# add help menu
 help_menu = tk.Menu(menu_bar, tearoff=0)
-#add help menu to menu bar
+# add help menu to menu bar
 menu_bar.add_cascade(label="Help", menu=help_menu)
-#on click on help menu cascade open help window
+# on click on help menu cascade open help window
 help_menu.add_command(label="Help", command=lambda: open_help_window())
 
 # bind i to inbox
