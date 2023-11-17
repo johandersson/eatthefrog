@@ -1,3 +1,7 @@
+
+import tkinter as tk
+# Import the win32com.client to create an Outlook application object
+import win32com.client as win32
 # Create a Note class
 class Note:
     def __init__(self, window=None):
