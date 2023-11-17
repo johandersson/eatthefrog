@@ -2,7 +2,7 @@
 import datetime
 import os
 import sqlite3
-from tkinter import messagebox, filedialog
+from tkinter import messagebox, filedialog, simpledialog
 
 import win32com.client
 import tkinter as tk  # you can use tkinter or another library to create a GUI
@@ -91,8 +91,18 @@ def convert_seconds_to_string(seconds):
         time_worked = time_worked.strftime("%H:%M:%S")
     return time_worked
 
+def set_estimated_work(event, popup, timer_label, task):
+    #ask user to set estimated work with simpledialog
+    estimated_work = simpledialog.askinteger("Set estimated work", "How many minutes do you think this task will take?")
+    #if user pressed cancel
+    if estimated_work is None:
+        #return
+        return
 
-def open_timer_window(event, task):
+    #set task TotalWork to estimated work
+    task.TotalWork = estimated_work
+
+def open_timer_window(event, task_to_start_timer_on):
     # create a popup window
     popup = tk.Toplevel(root)
     popup.title("Timer")
@@ -123,24 +133,29 @@ def open_timer_window(event, task):
     # add scrollbar to canvas
     # create a label to display the task subject
     subject_label = tk.Label(canvas)
-    subject_label.config(text=task.Subject, bg="white")
+    subject_label.config(text=task_to_start_timer_on.Subject, bg="white")
     subject_label.pack()
     # create a label to display the task due date
     due_date_label = tk.Label(canvas)
-    due_date_label.config(text=task.DueDate.strftime("%d/%m/%Y"), bg="white")
+    due_date_label.config(text=task_to_start_timer_on.DueDate.strftime("%d/%m/%Y"), bg="white")
     due_date_label.pack()
     # create a label to display the task category
     category_label = tk.Label(canvas)
-    category_label.config(text=task.Categories, bg="white")
+    category_label.config(text=task_to_start_timer_on.Categories, bg="white")
     category_label.pack()
     # create a label to display the task body
     body_label = tk.Label(canvas)
-    body_label.config(text=task.Body, bg="white")
+    body_label.config(text=task_to_start_timer_on.Body, bg="white")
     body_label.pack()
     # create a label to display the timer
     timer_label = tk.Label(canvas)
     timer_label.config(text="25:00", bg="white", font=("Arial", 100))
     timer_label.pack()
+    # create a button to stop the timer
+    stop_button = tk.Button(canvas)
+    stop_button.config(text="Stop", bg="white", command=lambda: close_popup_and_save_time_in_task(event, popup, task_to_start_timer_on))
+    stop_button.pack()
+
     # make all labels white background
     subject_label.config(bg="white")
     due_date_label.config(bg="white")
@@ -154,11 +169,28 @@ def open_timer_window(event, task):
     # make popup white background
     popup.config(bg="white")
     # on press escape, close this popup and focus on root
-    popup.bind("<Escape>", lambda event: close_popup_and_save_time_in_task(event, popup, task))
+    popup.bind("<Escape>", lambda event: close_popup_and_save_time_in_task(event, popup, task_to_start_timer_on))
 
-    # start the timer
+    # if task has no TotalWork, ask if user wants to set it, TotalWork is estimated work
+    if task_to_start_timer_on.TotalWork is None or task_to_start_timer_on.TotalWork == 0:
+        #print a small text on the canvas that says "Click here to set estimated work" that looks like a link, under the timer
+        # draw a button under the timer that says "Set estimated work"
+        set_estimated_work_button = tk.Button(canvas)
+        set_estimated_work_button.config(text="Set estimated work", bg="white")
+        #bind button to set_estimated_work function
+        set_estimated_work_button.bind("<Button-1>", lambda event: set_estimated_work(event, popup, timer_label, task_to_start_timer_on))
+        set_estimated_work_button.pack()
+    else:
+        pass
+
+
+
     start_timer(timer_label, popup)
-    # save worked time in a variable
+    #focus on popup
+
+
+
+
 
 
 # set task ActualWork to worked time in minutes, and add to it if there is already a value
@@ -174,27 +206,23 @@ def set_task_actual_work(task, worked_time):
     return task.ActualWork
 
 
-# calculate TotalWork left
-def calculate_total_work_left(task):
-    # if task TotalWork is None
-    if task.TotalWork is None:
-        # return 0
-        return 0
-    else:
-        # return task TotalWork - task ActualWork
-        return task.TotalWork - task.ActualWork
-
 
 # caluclate percentage of task done
 def calculate_percentage_of_task_done(task):
-    percentage_of_task_done = 0
-    if task.TotalWork == 0 or task.ActualWork == 0 or task.TotalWork is None or task.ActualWork is None:
-        # return 0
-        return percentage_of_task_done
-    else:
-        percentage_of_task_done = int(task.ActualWork / task.TotalWork * 100)
+    #check for division by zero
+    if task.TotalWork == 0:
+        return 0
+    # calculate percentage of task done
 
-    return percentage_of_task_done
+    percentage = int(task.ActualWork / task.TotalWork * 100)
+    if percentage > 100:
+        percentage = 100
+        #calculate how much time was over estimated in hours
+        over_estimated_time = str(datetime.timedelta(minutes=task.ActualWork - task.TotalWork))
+        #add info to task body that task took more time than estimated
+        task.Body += "\n\nThis task took more time than estimated:" + over_estimated_time
+
+    return percentage
 
 
 def close_popup_and_save_time_in_task(event, popup, task):
@@ -205,12 +233,11 @@ def close_popup_and_save_time_in_task(event, popup, task):
     # if worked time is 0
     if worked_time_minutes < 1:
         # show message box to ask if user wants to save time in task
-        if messagebox.askyesno("Save time in task?", "Do you want to save time in task?"):
+        if messagebox.askyesno("Save time in task?", "You worked less than 1 minute on the task.\nDo you want to save time in task?\nIt will be saved as one minute in Outlook."):
             # set worked time to 1 minute
             worked_time_minutes = 1
 
     task.ActualWork = set_task_actual_work(task, worked_time_minutes)
-    task.TotalWork = calculate_total_work_left(task)
     task.PercentComplete = calculate_percentage_of_task_done(task)
     # close popup and save time in task
     popup.destroy()
@@ -558,16 +585,19 @@ def draw_tasks():
         else:
             color = "gold"
 
-        # draw a dot on the canvas with the color
-        dot = canvas.create_oval(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius, fill=color,
+        # draw a box on the left side of the task with the color of the category, without border
+        check_box = canvas.create_rectangle(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius, fill=color,
+                                outline="")
 
-                                 outline=color)
+        #when clicking the checkbox draw a check mark inside it
+        canvas.tag_bind(check_box, "<Button-1>", lambda event, task=task: mark_done(event, task, check_box))
+
         # mark done on left click
-        canvas.tag_bind(dot, "<Button-1>", lambda event, task=task: mark_done(event, task))
+        canvas.tag_bind(check_box, "<Button-1>", lambda event, task=task: mark_done(event, task))
         # when double clicking the dot open the task in outlook
-        canvas.tag_bind(dot, "<Double-Button-1>", lambda event, task=task: task.Display())
+        canvas.tag_bind(check_box, "<Double-Button-1>", lambda event, task=task: task.Display())
         # when mouse wheel clicking the dot open a timer window
-        canvas.tag_bind(dot, "<Button-2>", lambda event, task=task: open_timer_window(event, task))
+        canvas.tag_bind(check_box, "<Button-2>", lambda event, task=task: open_timer_window(event, task))
         # draw a text with the task information on the canvas with black color and Arial font size 14
         task_text = canvas.create_text(x3, y3, text=task_info, fill="black", font=("Arial", 12), anchor=tk.W)
         # when double clicking the task text open the task in outlook
@@ -576,9 +606,11 @@ def draw_tasks():
         canvas.tag_bind(task_text, "<Button-2>", lambda event, task=task: open_timer_window(event, task))
         # when left clicking the task text open a popup window to show the body of the task
 
-        # if task has ActualWork, TotalWork, and PercentComplete, draw it under the task text, next to the due date
-
-        # if task is completed draw light green check mark on the right to the text
+        #if task is done draw a green check mark inside the box
+        if task.Status == 2:
+            check_mark = canvas.create_text(x1, y1, text="✓", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
+            #bind check mark to mark_done function
+            canvas.tag_bind(check_mark, "<Button-1>", lambda event, task=task: mark_done(event, task, check_mark))
 
         draw_tasks_with_icons(task, x3, y3)
 
@@ -724,9 +756,14 @@ def draw_tasks_with_icons(task, x3, y3):
                            fill="grey", font=("Arial", 7),
                            anchor=tk.W)
 
-        # draw percentage of task done next to estimated work
-        canvas.create_text(x3 + 300, y3 + 15, text="Progress: " + str(task.PercentComplete) + "%", fill="grey",
-                           font=("Arial", 7),
+        # draw percentage of task done next to estimated work, if it is 100% make it green
+        if task.PercentComplete == 100:
+            text_color = "green"
+        else:
+            text_color = "grey"
+
+        canvas.create_text(x3 + 300, y3 + 15, text="Done: " + str(task.PercentComplete) + "%",
+                           fill=text_color, font=("Arial", 7),
                            anchor=tk.W)
 
         # if task is complete draw a check mark on the right side of the due date text
@@ -911,20 +948,26 @@ load_tasks()
 # create a root window for the GUI
 
 
-def mark_done(event, task):
+def mark_done(event, task, check_mark=None):
     if task.Status == 2:
         task.Status = 1
     else:
         task.Status = 2
 
     item = canvas.find_withtag("current")
-    # Change its fill color to gold
-    canvas.itemconfig(item, fill="gold")
-    # draw a check mark on the right side of the task text
-    canvas.create_text(event.x + 310, event.y, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
+    #frame the item with a black border
+    #if task is not already done
+    if task.Status == 2:
+        #draw a small green check mark a little bit bigger then the item, inside the item
+        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="✓", fill="light green",
+                           font=("Arial", 18), anchor=tk.W)
+    else:
+        #delete the check mark from item
+        #remove check_mark
+        canvas.delete(check_mark)
+
 
     task.Save()
-    canvas.itemconfig(item, fill="gold")
 
     # reload the tasks after 3 seconds
 
@@ -1325,7 +1368,7 @@ def open_help_window():
 
 def load_inbox():
     # create new window
-    inbox = Inbox(root)
+    inbox = Inbox()
 
 
 # add generate html file button to ctrl+g
