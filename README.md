@@ -1,5 +1,5 @@
 # Eat the frog
-Task manager for pywin32 and outlook
+Task manager for pywin32 and outlook. (And excel if you want to export time reports)
 
 Assumes you have outlook and pywin32 installed on Windows.
 
