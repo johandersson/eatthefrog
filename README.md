@@ -1,7 +1,7 @@
 # Eat the frog
-Task manager for pywin32 and outlook. (And excel if you want to export time reports)
+Task manager for pywin32 and outlook. 
 
-Assumes you have outlook and pywin32 installed on Windows.
+Assumes you have outlook and pywin32 installed on Windows. (And excel if you want to export time reports).
 
 To install pywin32:
 pip install pywin32
