@@ -1,11 +1,15 @@
 # import datetime with today
 import datetime
+import locale
 import os
 import sqlite3
 from tkinter import messagebox, filedialog, simpledialog
 
 import win32com.client
 import tkinter as tk  # you can use tkinter or another library to create a GUI
+
+import tkcalendar
+from tkcalendar import DateEntry
 
 # set some constants for the drawing
 dot_radius = 8  # radius of each dot
@@ -535,6 +539,38 @@ def show_task_body(event, task):
     save_button.config(text="Save", bg="white", command=lambda: save_body(body_text, task, popup))
     save_button.grid(row=1, column=0, padx=10, pady=10)
 
+def change_category_popup(event, task):
+    #create popup menu
+    popup_menu = tk.Menu(root, tearoff=0)
+    #set title of popup menu
+
+    #add separator
+
+    #add categories to popup menu as submenu
+    categories_menu = tk.Menu(popup_menu, tearoff=0)
+    categories_menu.add_command(label="A", command=lambda: change_category(task, "A"))
+    categories_menu.add_command(label="B", command=lambda: change_category(task, "B"))
+    categories_menu.add_command(label="C", command=lambda: change_category(task, "C"))
+    categories_menu.add_command(label="Projects", command=lambda: change_category(task, "Projects"))
+    popup_menu.add_cascade(label="Change category", menu=categories_menu)
+
+    #add menu to start a timer on the task
+    popup_menu.add_command(label="Start timer", command=lambda: open_timer_window(event, task))
+    #add menu to show task body
+    popup_menu.add_command(label="Show task body", command=lambda: show_task_body(event, task))
+
+
+    #display popup menu
+    popup_menu.tk_popup(event.x_root, event.y_root)
+
+def change_category(task, category):
+    #set task category to category
+    task.Categories = category
+    #save task
+    task.Save()
+    #update tasks
+    load_tasks()
+
 
 def draw_tasks():
     # clear
@@ -602,9 +638,13 @@ def draw_tasks():
         task_text = canvas.create_text(x3, y3, text=task_info, fill="black", font=("Arial", 12), anchor=tk.W)
         # when double clicking the task text open the task in outlook
         canvas.tag_bind(task_text, "<Double-Button-1>", lambda event, task=task: task.Display())
+        #when right clicking the task text open a popup menu with an option to change the category of the task
+        canvas.tag_bind(task_text, "<Button-3>", lambda event, task=task: change_category_popup(event, task))
         # when mouse wheel clicking the task text open a timer window
         canvas.tag_bind(task_text, "<Button-2>", lambda event, task=task: open_timer_window(event, task))
         # when left clicking the task text open a popup window to show the body of the task
+
+
 
         #if task is done draw a green check mark inside the box
         if task.Status == 2:
@@ -974,7 +1014,7 @@ def mark_done(event, task, check_mark=None):
     root.after(3000, load_tasks)
 
 
-def save_task(subject, category, due_date, create_calendar_event, popup=None):
+def save_task(subject, category, due_date, create_calendar_event, date_var=None, popup=None):
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
     # get the namespace object
@@ -997,9 +1037,10 @@ def save_task(subject, category, due_date, create_calendar_event, popup=None):
     # set the reminder to tomorrow at 9 AM
     task.ReminderSet = True
 
+
     # check if create calendar event is checked
     if create_calendar_event:
-        create_new_calendar_event_based_on_task(category, due_date, namespace, subject)
+        create_new_calendar_event_based_on_task(category, date_var, namespace, subject)
 
     # if due date is today
     set_due_date_on_task(due_date, task)
@@ -1072,6 +1113,20 @@ def set_due_date_on_task(due_date, task):
 
 def set_date_on_calendar_event(calendar_event, due_date):
     if due_date:
+        #if due date is DateTime
+        if type(due_date) == datetime.date:
+            #covert datetime.date to pywin32 datetime
+            due_date = datetime.datetime.combine(due_date, datetime.datetime.min.time())
+
+            #set due date to local timezone
+            calendar_event.Start = due_date
+            #all day
+            calendar_event.AllDayEvent = True
+            # set reminder date
+            calendar_event.ReminderSet = True
+            # set reminder time to 9 AM tomorrow
+            calendar_event.ReminderMinutesBeforeStart = 15
+
         # if due date is today
         if due_date == "Today":
             # set start date to today
@@ -1177,17 +1232,30 @@ def create_new_task_popup():
 
     # checkbox to create a new calendar event with the same subject as the task and the same color as the category
     create_calendar_event_checkbox = tk.Checkbutton(frame)
+    #add tkcalendar date picker
+
     create_calendar_event_checkbox.config(text="Create calendar event", bg="white")
     create_calendar_event_checkbox.grid(row=3, column=0, padx=10, pady=10)
     # variable to store the checkbox value
     create_calendar_event_var = tk.IntVar()
     create_calendar_event_checkbox.config(variable=create_calendar_event_var)
 
+    #add tkcalendar date entry
+    date_entry = DateEntry(frame)
+    #get default locale of system
+    #set format to dd/mm/yyyy
+    date_entry.config(date_pattern="dd/mm/yyyy")
+    date_entry.grid(row=3, column=1, padx=10, pady=10)
+    #save picked date in date_var
+
+
+
+
     # create a button to save the task
     save_button = tk.Button(frame)
     save_button.config(text="Save",
                        command=lambda: save_task(subject_entry.get(), category_var.get(), due_date_var.get(),
-                                                 create_calendar_event_var.get(), popup),
+                                                 create_calendar_event_var.get(), date_entry.get_date(), popup),
                        bg="white")
 
     # create a button to cancel the task
@@ -1395,7 +1463,7 @@ def add_menus():
     # add export menu to file menu
     file_menu.add_cascade(label="Export", menu=export_menu)
     # add export tasks with actual work to excel file
-    export_menu.add_command(label="Tasks with actual work to excel", command=export_tasks_to_excel)
+    export_menu.add_command(label="Time report in Excel", command=export_tasks_to_excel)
     # export tasks to sqlite database
     export_menu.add_command(label="Tasks to sqlite database", command=export_tasks_to_sqlite)
     # import tasks from sqlite database
