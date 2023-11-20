@@ -1,5 +1,5 @@
-# gtdpy
-GTD gui scripts for pywin32 and outlook
+# Eat the frog
+Task manager for pywin32 and outlook
 
 Assumes you have outlook and pywin32 installed on Windows.
 
