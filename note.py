@@ -22,7 +22,7 @@ class Note:
         self.label2 = tk.Label(window, text="Choose a category:")
         self.label2.pack()
         # Define a list of color categories
-        self.categories = ["Blue", "Green", "Orange", "Purple", "Red"]
+        self.categories = ["Blue", "Green", "Pink", "Yellow", "White"]
         # Create a variable to store the selected category
         self.selected_category = tk.StringVar()
         self.selected_category.set(self.categories[0])  # Set the default value to the first category
@@ -59,11 +59,11 @@ class Note:
             note.Color = 0
         elif note_category == "Green":
             note.Color = 1
-        elif note_category == "Orange":
+        elif note_category == "Pink":
             note.Color = 2
-        elif note_category == "Purple":
+        elif note_category == "Yellow":
             note.Color = 3
-        elif note_category == "Red":
+        elif note_category == "White":
             note.Color = 4
         # Save the note in Outlook
         note.Save()
