@@ -3,13 +3,21 @@ import datetime
 import locale
 import os
 import sqlite3
+from pathlib import Path
 from tkinter import messagebox, filedialog, simpledialog
 
+import clr
+
+clr.AddReference("System.Text.Encoding")
+import System
 import win32com.client
 import tkinter as tk  # you can use tkinter or another library to create a GUI
 
 import tkcalendar
+
 from tkcalendar import DateEntry
+from tkinterweb.htmlwidgets import HtmlFrame
+from tkrichtext.tkrichtext import TkRichtext
 
 # set some constants for the drawing
 dot_radius = 8  # radius of each dot
@@ -36,7 +44,8 @@ root.config(bg="white")
 # root title "Eat the frog"
 root.title("Eat the frog")
 # make root window full screen
-root.state("zoomed")
+#set root to 800x800
+root.geometry("800x800")
 
 
 def create_filter_buttons():
@@ -60,18 +69,17 @@ def create_filter_buttons():
     projects_button.pack(side=tk.LEFT)
 
 
-
-#add three buttons on top of the canvas
+# add three buttons on top of the canvas
 create_filter_buttons()
 # add a button to create a new note
 
 
-#add small notes button next to
+# add small notes button next to
 # create a canvas to draw on
 canvas = tk.Canvas(root)
 # make the canvas fill the root window
 canvas.pack(fill=tk.BOTH, expand=True)
-#above canvas put a small button that loads the inbox
+# above canvas put a small button that loads the inbox
 
 
 # add status bar to root
@@ -95,16 +103,26 @@ def convert_seconds_to_string(seconds):
         time_worked = time_worked.strftime("%H:%M:%S")
     return time_worked
 
+
 def set_estimated_work(event, popup, timer_label, task):
-    #ask user to set estimated work with simpledialog
+    # check if tasks already has TotalWork
+    total_work = task.TotalWork
+    if total_work is not None and total_work != 0:
+        # show simple diaglog with the total work already set in input box, let the user change it
+        estimated_work = simpledialog.askinteger("Set estimated work",
+                                                 "How many minutes do you think this task will take?",
+                                                 initialvalue=total_work)
+
+    # ask user to set estimated work with simpledialog
     estimated_work = simpledialog.askinteger("Set estimated work", "How many minutes do you think this task will take?")
-    #if user pressed cancel
+    # if user pressed cancel
     if estimated_work is None:
-        #return
+        # return
         return
 
-    #set task TotalWork to estimated work
+    # set task TotalWork to estimated work
     task.TotalWork = estimated_work
+
 
 def open_timer_window(event, task_to_start_timer_on):
     # create a popup window
@@ -157,7 +175,8 @@ def open_timer_window(event, task_to_start_timer_on):
     timer_label.pack()
     # create a button to stop the timer
     stop_button = tk.Button(canvas)
-    stop_button.config(text="Stop", bg="white", command=lambda: close_popup_and_save_time_in_task(event, popup, task_to_start_timer_on))
+    stop_button.config(text="Stop", bg="white",
+                       command=lambda: close_popup_and_save_time_in_task(event, popup, task_to_start_timer_on))
     stop_button.pack()
 
     # make all labels white background
@@ -175,26 +194,17 @@ def open_timer_window(event, task_to_start_timer_on):
     # on press escape, close this popup and focus on root
     popup.bind("<Escape>", lambda event: close_popup_and_save_time_in_task(event, popup, task_to_start_timer_on))
 
-    # if task has no TotalWork, ask if user wants to set it, TotalWork is estimated work
-    if task_to_start_timer_on.TotalWork is None or task_to_start_timer_on.TotalWork == 0:
-        #print a small text on the canvas that says "Click here to set estimated work" that looks like a link, under the timer
-        # draw a button under the timer that says "Set estimated work"
-        set_estimated_work_button = tk.Button(canvas)
-        set_estimated_work_button.config(text="Set estimated work", bg="white")
-        #bind button to set_estimated_work function
-        set_estimated_work_button.bind("<Button-1>", lambda event: set_estimated_work(event, popup, timer_label, task_to_start_timer_on))
-        set_estimated_work_button.pack()
-    else:
-        pass
-
-
+    # print a small text on the canvas that says "Click here to set estimated work" that looks like a link, under the timer
+    # draw a button under the timer that says "Set estimated work"
+    set_estimated_work_button = tk.Button(canvas)
+    set_estimated_work_button.config(text="Set estimated work", bg="white")
+    # bind button to set_estimated_work function
+    set_estimated_work_button.bind("<Button-1>",
+                                   lambda event: set_estimated_work(event, popup, timer_label, task_to_start_timer_on))
+    set_estimated_work_button.pack()
 
     start_timer(timer_label, popup)
-    #focus on popup
-
-
-
-
+    # focus on popup
 
 
 # set task ActualWork to worked time in minutes, and add to it if there is already a value
@@ -210,10 +220,9 @@ def set_task_actual_work(task, worked_time):
     return task.ActualWork
 
 
-
 # caluclate percentage of task done
 def calculate_percentage_of_task_done(task):
-    #check for division by zero
+    # check for division by zero
     if task.TotalWork == 0:
         return 0
     # calculate percentage of task done
@@ -221,9 +230,9 @@ def calculate_percentage_of_task_done(task):
     percentage = int(task.ActualWork / task.TotalWork * 100)
     if percentage > 100:
         percentage = 100
-        #calculate how much time was over estimated in hours
+        # calculate how much time was over estimated in hours
         over_estimated_time = str(datetime.timedelta(minutes=task.ActualWork - task.TotalWork))
-        #add info to task body that task took more time than estimated
+        # add info to task body that task took more time than estimated
         task.Body += "\n\nThis task took more time than estimated:" + over_estimated_time
 
     return percentage
@@ -237,7 +246,8 @@ def close_popup_and_save_time_in_task(event, popup, task):
     # if worked time is 0
     if worked_time_minutes < 1:
         # show message box to ask if user wants to save time in task
-        if messagebox.askyesno("Save time in task?", "You worked less than 1 minute on the task.\nDo you want to save time in task?\nIt will be saved as one minute in Outlook."):
+        if messagebox.askyesno("Save time in task?",
+                               "You worked less than 1 minute on the task.\nDo you want to save time in task?\nIt will be saved as one minute in Outlook."):
             # set worked time to 1 minute
             worked_time_minutes = 1
 
@@ -437,7 +447,7 @@ def search_tasks(subject, body, search_results_listbox, popup):
         if subject != "" and subject.casefold() in task_item.Subject.casefold():
             # add task to list
             search_results.append(task_item)
-        #is body is not empty and in task body, ignore case
+        # is body is not empty and in task body, ignore case
         if body != "" and body.casefold() in task_item.Body.casefold():
             # add task to list
             search_results.append(task_item)
@@ -504,7 +514,7 @@ def start_timer(timer_label, popup):
 
 def save_body(body_text, task, popup):
     # get body text from text widget
-    body = body_text.get(1.0, tk.END)
+    body = body_text.rt.Rtf
     # set task body to body text
     task.Body = body
     # save task
@@ -512,41 +522,122 @@ def save_body(body_text, task, popup):
     # destroy popup
     popup.destroy()
 
+def turn_text_bold(rtf):
+    # get selected text
+    selected_text = rtf.SelectedText
+    # if selected text is not empty
+    if selected_text != "":
+        # if selected text is bold
+        print(rtf.SelectionFont)
+        #set selected text to bold
+        #if already bold
+        if not rtf.SelectionFont.Bold:
+            rtf.SelectionFont = System.Drawing.Font(rtf.SelectionFont, System.Drawing.FontStyle.Bold)
+        else:
+            rtf.SelectionFont = System.Drawing.Font(rtf.SelectionFont, System.Drawing.FontStyle.Regular)
+
+def turn_text_italic(rtf):
+    # get selected text
+    selected_text = rtf.SelectedText
+    # if selected text is not empty
+    if selected_text != "":
+        # if selected text is bold
+        print(rtf.SelectionFont)
+        #set selected text to bold
+        #if already bold
+        if not rtf.SelectionFont.Italic:
+            rtf.SelectionFont = System.Drawing.Font(rtf.SelectionFont, System.Drawing.FontStyle.Italic)
+        else:
+            rtf.SelectionFont = System.Drawing.Font(rtf.SelectionFont, System.Drawing.FontStyle.Regular)
 
 def show_task_body(event, task):
     # create a popup window
     popup = tk.Toplevel(root)
     popup.title("Task body")
     popup.config(bg="white")
-    popup.geometry("600x400")
-    # popup.resizable(False, False)
-    # create a frame to hold the widgets
+    popup.geometry("600x600")
+
+    # add frame with TkRichText and save button
     frame = tk.Frame(popup)
     frame.config(bg="white")
-    frame.pack(fill=tk.BOTH)
+    frame.pack(fill=tk.BOTH, expand=True)
 
-    # create a text widget to display the task body
-    body_text = tk.Text(frame)
-    body_text.config(width=50, height=10)
-    body_text.grid(row=0, column=0, padx=10, pady=10)
-    # insert task body into text widget
-    body_text.insert(tk.END, task.Body)
+    # add Windows .NET button above TkRichtext
+    # add bold button
+    bold_button = tk.Button(frame)
+    bold_button.config(text="Bold", bg="white", command=lambda: turn_text_bold(rt.rt))
+    bold_button.pack()
 
-    # show
+    #add button to text italic
+    italic_button = tk.Button(frame)
+    italic_button.config(text="Italic", bg="white", command=lambda: turn_text_italic(rt.rt))
+    italic_button.pack()
 
-    # add a save button under the text widget
+
+    # create TkRichText
+    rt = TkRichtext(frame, 500, 500)
+
+    # add scroll to rt
+    rt.Multiline = True
+    # pack to fill horizontally
+    # rt.pack(fill=tk.X)
+    rt.pack()
+
+
+
+    # add save button under TkRichtext
     save_button = tk.Button(frame)
-    save_button.config(text="Save", bg="white", command=lambda: save_body(body_text, task, popup))
-    save_button.grid(row=1, column=0, padx=10, pady=10)
+    save_button.config(text="Save", bg="white", command=lambda: save_body(rt, task, popup))
+    save_button.pack()
+
+    # check if body text has html
+    # if task has RTFBody
+    if task.RTFBody is not None:
+        # set rt.rt.Rtf to task.RTFBody in rtf format
+        rtf_text = System.Text.Encoding.ASCII.GetString(task.RTFBody)  # convert the byte array
+        rt.rt.Rtf = rtf_text
+    else:
+        rt.Text = task.Body
+
+
+
+
+
+def create_calendar_event_from_task(task):
+    # create a calendar event from task
+    # create an Outlook application object
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    # get the namespace object
+    namespace = outlook.GetNamespace("MAPI")
+    # get the default folder for tasks
+    tasks_folder = namespace.GetDefaultFolder(13)
+    # get all the tasks in the folder
+    tasks = tasks_folder.Items
+    # loop through all the tasks and check their subject or body
+    # new calendar event
+    calendar_event = outlook.CreateItem(1)
+    # set calendar event subject to task subject
+    calendar_event.Subject = task.Subject
+    # set calendar event body to task body
+    calendar_event.Body = task.Body
+    # set calendar event start date to task start date
+    calendar_event.Start = task.StartDate
+    # set calendar event end date to task due date
+    calendar_event.End = task.DueDate
+    # set category to task category
+    calendar_event.Categories = task.Categories
+    # save calendar event
+    calendar_event.Save()
+
 
 def change_category_popup(event, task):
-    #create popup menu
+    # create popup menu
     popup_menu = tk.Menu(root, tearoff=0)
-    #set title of popup menu
+    # set title of popup menu
 
-    #add separator
+    # add separator
 
-    #add categories to popup menu as submenu
+    # add categories to popup menu as submenu
     categories_menu = tk.Menu(popup_menu, tearoff=0)
     categories_menu.add_command(label="A", command=lambda: change_category(task, "A"))
     categories_menu.add_command(label="B", command=lambda: change_category(task, "B"))
@@ -554,21 +645,27 @@ def change_category_popup(event, task):
     categories_menu.add_command(label="Projects", command=lambda: change_category(task, "Projects"))
     popup_menu.add_cascade(label="Change category", menu=categories_menu)
 
-    #add menu to start a timer on the task
+    # add menu to start a timer on the task
     popup_menu.add_command(label="Start timer", command=lambda: open_timer_window(event, task))
-    #add menu to show task body
+    # add menu to show task body
     popup_menu.add_command(label="Show task body", command=lambda: show_task_body(event, task))
 
+    # add menu to create calendar event from task
+    popup_menu.add_command(label="Create calendar event", command=lambda: create_calendar_event_from_task(task))
 
-    #display popup menu
+    # add menu to open task in outlook
+    popup_menu.add_command(label="Open task in Outlook", command=lambda: task.Display())
+
+    # display popup menu
     popup_menu.tk_popup(event.x_root, event.y_root)
 
+
 def change_category(task, category):
-    #set task category to category
+    # set task category to category
     task.Categories = category
-    #save task
+    # save task
     task.Save()
-    #update tasks
+    # update tasks
     load_tasks()
 
 
@@ -622,10 +719,11 @@ def draw_tasks():
             color = "gold"
 
         # draw a box on the left side of the task with the color of the category, without border
-        check_box = canvas.create_rectangle(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius, fill=color,
-                                outline="")
+        check_box = canvas.create_rectangle(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius,
+                                            fill=color,
+                                            outline="")
 
-        #when clicking the checkbox draw a check mark inside it
+        # when clicking the checkbox draw a check mark inside it
         canvas.tag_bind(check_box, "<Button-1>", lambda event, task=task: mark_done(event, task, check_box))
 
         # mark done on left click
@@ -638,18 +736,16 @@ def draw_tasks():
         task_text = canvas.create_text(x3, y3, text=task_info, fill="black", font=("Arial", 12), anchor=tk.W)
         # when double clicking the task text open the task in outlook
         canvas.tag_bind(task_text, "<Double-Button-1>", lambda event, task=task: task.Display())
-        #when right clicking the task text open a popup menu with an option to change the category of the task
+        # when right clicking the task text open a popup menu with an option to change the category of the task
         canvas.tag_bind(task_text, "<Button-3>", lambda event, task=task: change_category_popup(event, task))
         # when mouse wheel clicking the task text open a timer window
         canvas.tag_bind(task_text, "<Button-2>", lambda event, task=task: open_timer_window(event, task))
         # when left clicking the task text open a popup window to show the body of the task
 
-
-
-        #if task is done draw a green check mark inside the box
+        # if task is done draw a green check mark inside the box
         if task.Status == 2:
             check_mark = canvas.create_text(x1, y1, text="✓", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
-            #bind check mark to mark_done function
+            # bind check mark to mark_done function
             canvas.tag_bind(check_mark, "<Button-1>", lambda event, task=task: mark_done(event, task, check_mark))
 
         draw_tasks_with_icons(task, x3, y3)
@@ -816,7 +912,7 @@ def export_tasks_to_sqlite():
     # file dialog for user to choose file name and location
     file = filedialog.asksaveasfilename(defaultextension=".db", filetypes=[("SQLite database", "*.db")])
     #
-    #check if file exists already
+    # check if file exists already
     if os.path.exists(file):
         # do you want to overwrite file?
         overwrite_file = messagebox.askyesno("Overwrite file?", "Do you want to overwrite file?")
@@ -856,9 +952,10 @@ def export_tasks_to_sqlite():
         # add task to sqlite database
         # convert pywin32 datetime to sqlite datetime
         due_date = datetime.datetime.strptime(due_date.strftime("%d/%m/%Y"), "%d/%m/%Y")
-        c.execute("INSERT INTO tasks VALUES (:subject, :actual_work, :total_work, :percent_complete, :due_date, :body, :category)",
-                  {"subject": subject, "actual_work": actual_work, "total_work": total_work,
-                   "percent_complete": percent_complete, "due_date": due_date, "body": body, "category": category})
+        c.execute(
+            "INSERT INTO tasks VALUES (:subject, :actual_work, :total_work, :percent_complete, :due_date, :body, :category)",
+            {"subject": subject, "actual_work": actual_work, "total_work": total_work,
+             "percent_complete": percent_complete, "due_date": due_date, "body": body, "category": category})
 
     # commit changes
     conn.commit()
@@ -871,7 +968,7 @@ def import_tasks_from_sqlite():
     # create database
     # file dialog for user to choose file name and location
     file = filedialog.askopenfilename(defaultextension=".db", filetypes=[("SQLite database", "*.db")])
-    #connect to database
+    # connect to database
     conn = sqlite3.connect(file)
 
     # create cursor
@@ -995,17 +1092,16 @@ def mark_done(event, task, check_mark=None):
         task.Status = 2
 
     item = canvas.find_withtag("current")
-    #frame the item with a black border
-    #if task is not already done
+    # frame the item with a black border
+    # if task is not already done
     if task.Status == 2:
-        #draw a small green check mark a little bit bigger then the item, inside the item
+        # draw a small green check mark a little bit bigger then the item, inside the item
         canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="✓", fill="light green",
                            font=("Arial", 18), anchor=tk.W)
     else:
-        #delete the check mark from item
-        #remove check_mark
+        # delete the check mark from item
+        # remove check_mark
         canvas.delete(check_mark)
-
 
     task.Save()
 
@@ -1036,7 +1132,6 @@ def save_task(subject, category, due_date, create_calendar_event, date_var=None,
     # get tomorrow's date
     # set the reminder to tomorrow at 9 AM
     task.ReminderSet = True
-
 
     # check if create calendar event is checked
     if create_calendar_event:
@@ -1113,14 +1208,14 @@ def set_due_date_on_task(due_date, task):
 
 def set_date_on_calendar_event(calendar_event, due_date):
     if due_date:
-        #if due date is DateTime
+        # if due date is DateTime
         if type(due_date) == datetime.date:
-            #covert datetime.date to pywin32 datetime
+            # covert datetime.date to pywin32 datetime
             due_date = datetime.datetime.combine(due_date, datetime.datetime.min.time())
 
-            #set due date to local timezone
+            # set due date to local timezone
             calendar_event.Start = due_date
-            #all day
+            # all day
             calendar_event.AllDayEvent = True
             # set reminder date
             calendar_event.ReminderSet = True
@@ -1232,7 +1327,7 @@ def create_new_task_popup():
 
     # checkbox to create a new calendar event with the same subject as the task and the same color as the category
     create_calendar_event_checkbox = tk.Checkbutton(frame)
-    #add tkcalendar date picker
+    # add tkcalendar date picker
 
     create_calendar_event_checkbox.config(text="Create calendar event", bg="white")
     create_calendar_event_checkbox.grid(row=3, column=0, padx=10, pady=10)
@@ -1240,16 +1335,13 @@ def create_new_task_popup():
     create_calendar_event_var = tk.IntVar()
     create_calendar_event_checkbox.config(variable=create_calendar_event_var)
 
-    #add tkcalendar date entry
+    # add tkcalendar date entry
     date_entry = DateEntry(frame)
-    #get default locale of system
-    #set format to dd/mm/yyyy
+    # get default locale of system
+    # set format to dd/mm/yyyy
     date_entry.config(date_pattern="dd/mm/yyyy")
     date_entry.grid(row=3, column=1, padx=10, pady=10)
-    #save picked date in date_var
-
-
-
+    # save picked date in date_var
 
     # create a button to save the task
     save_button = tk.Button(frame)
@@ -1398,40 +1490,12 @@ def open_help_window():
     popup.geometry("600x600")
     popup.resizable(False, False)
 
-    # create white canvas that fills the popup window
-    canvas = tk.Canvas(popup)
-    canvas.config(bg="white")
-    # make canvas fill height and width of popup window
-    canvas.pack(fill=tk.BOTH, expand=True)
-
-    # draw the help text
-    canvas.create_text(300, 50, text="Help", fill="black", font=("Arial", 20), anchor=tk.CENTER)
-    canvas.create_text(300, 100, text="Press ctrl+n to create a new task", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 130, text="Press ctrl+r to reload the tasks", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 160, text="Press ctrl+p to show project tasks", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 190, text="Press ctrl+t to show tasks finished today", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 220, text="Press ctrl+a to show only category A tasks", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 250, text="Press ctrl+b to show only category B tasks", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 280, text="Press ctrl+c to show only category C tasks", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 310, text="Press ctrl+f to search tasks", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 340, text="Press i to load Inbox", fill="black", font=("Arial", 12), anchor=tk.CENTER)
-    canvas.create_text(300, 370, text="Press ctrl+g to generate html file", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 400, text="Right click dot to finish task", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 430, text="Double click task text to open it in Outlook", fill="black", font=("Arial", 12),
-                       anchor=tk.CENTER)
-    canvas.create_text(300, 460, text="Mouse wheel click task text or dot to start working timer", fill="black",
-                       font=("Arial", 12),
-                       anchor=tk.CENTER)
+    # add HtmlFrame from tkinterweb
+    frame = HtmlFrame(popup)
+    frame.pack(fill=tk.BOTH)
+    # load html file
+    frame.load_html(
+        "<h1>Help</h1><p>Press CTRL+N to create a new task</p><p>Press CTRL+R to reload tasks</p><p>Press CTRL+P to hide project tasks</p><p>Press CTRL+T to show tasks finished today</p><p>Press CTRL+A to show only category A tasks</p><p>Press CTRL+B to show only category B tasks</p><p>Press CTRL+C to show only category C tasks</p><p>Press CTRL+G to load inbox</p><p>Press CTRL+I to load note</p><p>Press CTRL+F to search tasks</p><p>Press CTRL+H to show all tasks</p><p>Press CTRL+O to show only project tasks</p><p>Press CTRL+Q to show only category A tasks</p><p>Press CTRL+W to show only category B tasks</p><p>Press CTRL+E to show only category C tasks</p><p>Press CTRL+D to show tasks finished today</p><p>Press CTRL+L to show all tasks</p><p>Press CTRL+M to show only project tasks</p><p>Press CTRL+Z to show only category A tasks</p><p>Press CTRL+X to show only category B tasks</p><p>Press CTRL+C to show only category C tasks</p>")
 
 
 def load_inbox():
@@ -1458,7 +1522,7 @@ def add_menus():
     file_menu = tk.Menu(menu_bar, tearoff=0)
     # add file menu to menu bar
     menu_bar.add_cascade(label="File", menu=file_menu)
-    #add sub menu for exporting stuff
+    # add sub menu for exporting stuff
     export_menu = tk.Menu(file_menu, tearoff=0)
     # add export menu to file menu
     file_menu.add_cascade(label="Export", menu=export_menu)
@@ -1471,19 +1535,20 @@ def add_menus():
     # add generate html file to file menu
     export_menu.add_command(label="HTML-file with done tasks", command=lambda: generate_html_file())
 
-    #add separator
+    # add separator
     file_menu.add_separator()
     # add exit to file menu
 
-    #Add new menu for showing tasks
+    # Add new menu for showing tasks
     show_tasks_menu = tk.Menu(menu_bar, tearoff=0)
-    #add show tasks menu to menu bar
+    # add show tasks menu to menu bar
     menu_bar.add_cascade(label="Show tasks", menu=show_tasks_menu)
     # add show tasks menu to file menu
     # add show all tasks to show tasks menu
     show_tasks_menu.add_command(label="Show all tasks", command=lambda: load_tasks(show_all_tasks=True))
     # add show tasks finished today to show tasks menu
-    show_tasks_menu.add_command(label="Show tasks finished today", command=lambda: load_tasks(show_tasks_finished_today=True))
+    show_tasks_menu.add_command(label="Show tasks finished today",
+                                command=lambda: load_tasks(show_tasks_finished_today=True))
     # add show only category A to show tasks menu
     show_tasks_menu.add_command(label="Show only category A", command=lambda: load_tasks(show_only_this_category="A"))
     # add show only category B to show tasks menu
@@ -1514,7 +1579,6 @@ def add_menus():
     menu_bar.add_cascade(label="Help", menu=help_menu)
     # on click on help menu cascade open help window
     help_menu.add_command(label="Help", command=lambda: open_help_window())
-
 
 
 add_menus()
