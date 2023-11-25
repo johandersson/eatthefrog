@@ -8,10 +8,10 @@ from datetime import datetime, timedelta
 class Inbox:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.geometry('300x250')
-        self.root.title('Inbox CTRL+S')
+        self.root.geometry('600x600')
+        self.root.title('Add several tasks, one on each line')
 
-        self.task_text = tk.Text(self.root, height=5)
+        self.task_text = tk.Text(self.root, height=20)
         self.task_text.pack(pady=10)
         self.task_text.focus_set()
         # Create a label for instructions under the textbox
@@ -25,6 +25,11 @@ class Inbox:
 
         self.root.bind('<Control-s>', self.save_tasks)
         self.root.bind('<Control-q>', self.close)
+
+        #add save button to the bottom right
+        self.save_button = tk.Button(self.root, text="Save (CTRL+S)", command=self.create_task)
+        self.save_button.pack(side=tk.RIGHT, padx=10, pady=10)
+
 
     def create_task(self):
         outlook = win32.Dispatch('Outlook.Application')
