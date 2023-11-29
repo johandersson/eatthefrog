@@ -3,8 +3,9 @@ import datetime
 import locale
 import os
 import sqlite3
+import webbrowser
 from pathlib import Path
-from tkinter import messagebox, filedialog, simpledialog
+from tkinter import messagebox, filedialog, simpledialog, ttk
 
 import clr
 
@@ -12,11 +13,11 @@ clr.AddReference("System.Text.Encoding")
 import System
 import win32com.client
 import tkinter as tk  # you can use tkinter or another library to create a GUI
-
+from inbox import Inbox
 import tkcalendar
 
 from tkcalendar import DateEntry
-from tkinterweb.htmlwidgets import HtmlFrame
+
 from tkrichtext.tkrichtext import TkRichtext
 
 # set some constants for the drawing
@@ -25,8 +26,7 @@ dot_gap = 10  # gap between each dot and task
 text_gap = 20  # gap between each task and text
 line_height = 30  # height of each line
 root = tk.Tk()
-# import Inbox class from inbox.py
-from inbox import Inbox
+
 # import Note class from note.py
 from note import Note
 
@@ -179,10 +179,6 @@ def open_timer_window(event, task_to_start_timer_on):
     subject_label.pack()
     # make subject label fill x
     subject_label.pack(fill=tk.X)
-    # create a label to display the task due date
-    due_date_label = tk.Label(canvas)
-    due_date_label.config(text=task_to_start_timer_on.DueDate.strftime("%d/%m/%Y"), bg="white")
-    due_date_label.pack()
     # create a label to display the task category
     category_label = tk.Label(canvas)
     category_label.config(text=task_to_start_timer_on.Categories, bg="white")
@@ -203,7 +199,6 @@ def open_timer_window(event, task_to_start_timer_on):
 
     # make all labels white background
     subject_label.config(bg="white")
-    due_date_label.config(bg="white")
     category_label.config(bg="white")
     body_label.config(bg="white")
     timer_label.config(bg="white")
@@ -485,7 +480,7 @@ def search_tasks(subject, body, search_results_listbox, popup):
     for task_item in search_results:
         # if task is done draw a green check mark on the right side of the task text
         if task_item.Status == 2:
-            search_results_listbox.insert(tk.END, task_item.Subject + " ✓")
+            search_results_listbox.insert(tk.END, task_item.Subject + " âœ“")
         else:
             search_results_listbox.insert(tk.END, task_item.Subject)
 
@@ -524,7 +519,7 @@ def start_timer(timer_label, popup):
         # if time is up, show a happy frog that says "Time's up!"
         if time <= 1:
             popup_canvas = popup.winfo_children()[0]
-            popup_canvas.create_text(350, 200, text="😊", fill="green", font=("Arial", 100),
+            popup_canvas.create_text(350, 200, text="ðŸ˜Š", fill="green", font=("Arial", 100),
                                      anchor=tk.CENTER)
             time_up_text = popup_canvas.create_text(350, 300, text="Time's up!", fill="green", font=("Arial", 30),
                                                     anchor=tk.CENTER)
@@ -755,7 +750,7 @@ def draw_tasks():
     loading_icon()
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
-        canvas.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
         # draw a text under the check mark saying "No tasks"
         canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
@@ -828,7 +823,7 @@ def draw_tasks():
 
         # if task is done draw a green check mark inside the box
         if task.Status == 2:
-            check_mark = canvas.create_text(x1, y1, text="✓", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
+            check_mark = canvas.create_text(x1, y1, text="âœ“", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
             # bind check mark to mark_done function
             canvas.tag_bind(check_mark, "<Button-1>", lambda event, task=task: mark_done(event, task, check_mark))
 
@@ -945,7 +940,7 @@ def draw_tasks_with_icons(task, x3, y3):
     # if task has body text
     if task.Body != "":
         # draw a paperclip icon on the right side of the task text
-        paperclip = canvas.create_text(x3 + 400, y3, text="📎", fill="grey", font=("Arial", 12), anchor=tk.W)
+        paperclip = canvas.create_text(x3 + 400, y3, text="ðŸ“Ž", fill="grey", font=("Arial", 12), anchor=tk.W)
         # when double clicking the paperclip icon open the body popup
         canvas.tag_bind(paperclip, "<Double-Button-1>", lambda event, task=task: show_task_body(event, task))
 
@@ -982,7 +977,7 @@ def draw_tasks_with_icons(task, x3, y3):
 
         # if task is complete draw a check mark on the right side of the due date text
         if task.Status == 2:
-            canvas.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
 
 
 # make function to export tasks on canvas sql database
@@ -1177,7 +1172,7 @@ def mark_done(event, task, check_mark=None):
     # if task is not already done
     if task.Status == 2:
         # draw a small green check mark a little bit bigger then the item, inside the item
-        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="✓", fill="light green",
+        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="âœ“", fill="light green",
                            font=("Arial", 18), anchor=tk.W)
     else:
         # delete the check mark from item
@@ -1591,23 +1586,23 @@ def generate_html_file():
 
 def generate_dots_and_subjects(category, finished_date, html_file, subject, task):
     if task.Status == 2:
-        html_file.write("<span style='color:green; font-size:40px'>✓</span> ")
+        html_file.write("<span style='color:green; font-size:40px'>âœ“</span> ")
     if category == "A":
         # write big dot and then subject and finished date
         html_file.write(
-            "<span style='color:red; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:red; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "B":
         html_file.write(
-            "<span style='color:yellow; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:yellow; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "C":
         html_file.write(
-            "<span style='color:green; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:green; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     else:
         html_file.write(
-            "<span style='color:gold; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:gold; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     # if the task has a body print it in small grey nice formatted letters under the task subject with space before and after
     if task.Body is not None:
@@ -1622,52 +1617,75 @@ def open_help_window():
     popup.config(bg="white")
     popup.geometry("600x600")
     popup.resizable(False, False)
-
-    # add HtmlFrame from tkinterweb
-    frame = HtmlFrame(popup)
+    # load licenses.txt into a text widget that is nicely formatted and read only
+    # create a frame to hold the widgets
+    frame = tk.Frame(popup)
+    frame.config(bg="white")
     frame.pack(fill=tk.BOTH)
-    # load html file
-    frame.load_html(
-        '<h1>Help</h1><p>Double click the task text to open it in Outlook</p>'
-        '<p>Left click a the task text to open an action menu on a task</p>'
-        '<p>Press CTRL+N to create a new task</p><p>Press CTRL+R to reload tasks</p><p>Press CTRL+P to '
-        'hide project tasks</p><p>Press CTRL+T to show tasks finished today</p><p>Press CTRL+A to show only category '
-        'A tasks</p><p>Press CTRL+B to show only category B tasks</p><p>Press CTRL+C to show only category C '
-        'tasks</p><p>Press CTRL+I to load inbox</p><p>Press CTRL+w to write a note</p><p>Press CTRL+F to search '
-        'tasks</p><p>Press CTRL+H to show all tasks</p><p>Press CTRL+O to show only project tasks</p><p>Press CTRL+Q '
-        'to show only category A tasks</p><p>Press CTRL+W to show only category B tasks</p><p>Press CTRL+E to show '
-        'only category C tasks</p><p>Press CTRL+D to show tasks finished today</p><p>Press CTRL+L to show all '
-        'tasks</p><p>Press CTRL+M to show only project tasks</p><p>Press CTRL+Z to show only category A '
-        'tasks</p><p>Press CTRL+X to show only category B tasks</p><p>Press CTRL+C to show only category C tasks</p>'
-        '<p>Press CTRL+T to show tasks finished today</p>'
-        '<h2>License information</h2>'
-        '<h3>Eat the frog uses the following free software modules</h3>'
-        '<ul><li>tkinterweb</li><li>tkcalendar</li><li>pywin32</li><li>pythonnet</li></ul><br><br>'
-        
-        '<b>Eat the frog itself, tkinterweb and pythonnet module are licensed under the MIT License. '
-        'tkcalendar is licensed under GPL v3. pywin32 is licensed under the PSF license version 2.'
-        'Se licenses.txt for more information.</b>'
+    # add RtfText widget to frame
+    # create TkRichText
+    #create two tabs, one with licenses and one with help
+    # create a tab control
+    tab_control = ttk.Notebook(frame)
+    tab_control.pack(expand=1, fill="both")
+    # create a tab for help
+    help_tab = ttk.Frame(tab_control)
+    # add help tab to tab control
+    tab_control.add(help_tab, text="Help")
+    # create a tab for licenses
+    licenses_tab = ttk.Frame(tab_control)
+    # add licenses tab to tab control
+    tab_control.add(licenses_tab, text="Licenses")
+    # create a frame for the help tab
+    help_frame = tk.Frame(help_tab)
+    help_frame.config(bg="white")
+    help_frame.pack(fill=tk.BOTH)
+    # create a frame for the licenses tab
+    licenses_frame = tk.Frame(licenses_tab)
+    licenses_frame.config(bg="white")
+    licenses_frame.pack(fill=tk.BOTH)
+    # add RtfText widget to frame
+    # create TkRichText for licenses
 
+    rt = TkRichtext(master=licenses_frame, width=600, height=600)
+    # pack the widget
+    rt.pack(fill=tk.BOTH, expand=True)
+    # licenses_file_path
+    licenses_file_path = os.path.join(os.path.dirname(__file__), "licenses.rtf")
+    rt.loadfile(licenses_file_path)
 
+    # add RtfText widget to frame
 
+    # create TkRichText for help
+    rt = TkRichtext(master=help_frame, width=600, height=600)
+    # pack the widget
+    rt.pack(fill=tk.BOTH, expand=True)
+    # open the help.rft file in the help frame
+    help_file_path = os.path.join(os.path.dirname(__file__), "help.rtf")
+    rt.loadfile(help_file_path)
 
-    )
+    #reaonly
+    rt.ReadOnly = True
+
+    # close the help.txt file
+
+    # create a button to close the popup
+    close_button = tk.Button(frame)
+    close_button.config(text="Close", command=popup.destroy, bg="white")
+    close_button.pack(padx=10, pady=10)
 
 
 def load_inbox():
-    # create new window
-    inbox = Inbox()
+    # create new inbox window with root as parent
+    # create new inbox object
+    inbox_window = Inbox(root, load_tasks)
 
 
 # add generate html file button to ctrl+g
 
 def load_note_input():
     # create new window
-    note_input_window = tk.Toplevel(root)
-    note = Note(note_input_window)
-    note.run()
-    # focus note window
-    note.focus_note_content()
+    note = Note(root)
 
 
 # open message input box to rename a task Subject
@@ -1730,9 +1748,9 @@ def add_menus():
     show_tasks_menu.add_command(label="Show only project tasks", command=lambda: load_tasks(show_projects=True))
 
     # add file menu to load Inbox class
-    file_menu.add_command(label="Load Inbox", command=lambda: load_inbox())
+    file_menu.add_command(label="Add several tasks", command=lambda: load_inbox())
     # add file menu to load Note class
-    file_menu.add_command(label="Load Note", command=lambda: load_note_input())
+    file_menu.add_command(label="Add note", command=lambda: load_note_input())
     file_menu.add_command(label="Exit", command=root.destroy)
     # bind CTRL+F to load search tasks
     root.bind("<Control-f>", lambda event: search_tasks_popup())
