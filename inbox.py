@@ -1,35 +1,37 @@
-import os
 from tkinter import END
 import win32com.client as win32
 import tkinter as tk
 from datetime import datetime, timedelta
 
 
-class Inbox:
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.geometry('600x600')
-        self.root.title('Add several tasks, one on each line')
+class Inbox(tk.Toplevel): # Inherit from Toplevel instead of Tk
+    def __init__(self, master, load_tasks):
+        self.load_tasks = load_tasks
+        super().__init__(master) # Call the super class constructor with the master window
+        self.geometry('600x600')
+        self.title('Add several tasks, one on each line')
 
-        self.task_text = tk.Text(self.root, height=20)
+        self.task_text = tk.Text(self, height=20) # Use self instead of self.root
         self.task_text.pack(pady=10)
         self.task_text.focus_set()
         # Create a label for instructions under the textbox
-        self.instructions = tk.Label(self.root,
+        self.instructions = tk.Label(self,
                                      text="To add an important task, end the subject with '!'\nTo add a bug end subject with !!\n To add a a project item use * in the end\nTo add a an Agenda item use?\nTo add a body to the task, use parenthesis '()'\nTo save the tasks, press CTRL+S\n To quit press CTRL+Q")
         self.instructions.pack(pady=10)
 
         # Create a statusbar at the bottom of the window
-        self.statusbar = tk.Label(self.root, text="No tasks saved yet", relief=tk.SUNKEN, anchor=tk.W)
+        self.statusbar = tk.Label(self, text="No tasks saved yet", relief=tk.SUNKEN, anchor=tk.W)
         self.statusbar.pack(side=tk.BOTTOM, fill=tk.X)
 
-        self.root.bind('<Control-s>', self.save_tasks)
-        self.root.bind('<Control-q>', self.close)
+        self.bind('<Control-s>', self.save_tasks)
+        self.bind('<Control-q>', self.close)
 
-        #add save button to the bottom right
-        self.save_button = tk.Button(self.root, text="Save (CTRL+S)", command=self.create_task)
+        #add save button to save tasks
+        self.save_button = tk.Button(self, text="Save tasks", command=self.save_tasks)
         self.save_button.pack(side=tk.RIGHT, padx=10, pady=10)
 
+    def set_focus(self):
+        self.task_text.focus_set()
 
     def create_task(self):
         outlook = win32.Dispatch('Outlook.Application')
@@ -80,19 +82,15 @@ class Inbox:
 
                 new_task.Save()
 
-    def save_tasks(self, event):
+    def save_tasks(self):
         self.create_task()
         # os.startfile("outlook")
         self.task_text.delete('1.0', END)
         # Update the statusbar with the current time
         self.statusbar.config(text=f"Tasks saved at {datetime.now().strftime('%H:%M:%S')}")
+        self.load_tasks()
+        #close the window
+        self.destroy()
 
     def close(self, event):
-        self.root.quit()
-
-    def run(self):
-        self.root.mainloop()
-
-if __name__ == "__main__":
-    inbox = Inbox()
-    inbox.run()
+        self.destroy() # Use destroy instead of quit to close the popup window
