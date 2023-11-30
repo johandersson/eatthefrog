@@ -26,7 +26,7 @@ dot_gap = 10  # gap between each dot and task
 text_gap = 20  # gap between each task and text
 line_height = 30  # height of each line
 root = tk.Tk()
-
+root.current_filter = None
 # import Note class from note.py
 from note import Note
 
@@ -43,8 +43,6 @@ root.bind("<Escape>", close_window)
 root.config(bg="white")
 # root title "Eat the frog"
 root.title("Eat the frog")
-# make root window full screen
-# set root to 800x800
 root.geometry("800x800")
 
 
@@ -160,7 +158,9 @@ def open_timer_window(event, task_to_start_timer_on):
     popup.config(bg="white")
     # maximize popup and make it not and really fullscreen without the taskbar
     popup.wm_state('zoomed')
-    popup.overrideredirect(True)
+    # popup.overrideredirect(True)
+    # disable x button
+    popup.protocol("WM_DELETE_WINDOW", lambda: close_popup_and_save_time_in_task(event, popup, task_to_start_timer_on))
 
     # create a canvas to draw on
     canvas = tk.Canvas(popup)
@@ -480,7 +480,7 @@ def search_tasks(subject, body, search_results_listbox, popup):
     for task_item in search_results:
         # if task is done draw a green check mark on the right side of the task text
         if task_item.Status == 2:
-            search_results_listbox.insert(tk.END, task_item.Subject + " âœ“")
+            search_results_listbox.insert(tk.END, task_item.Subject + " ✓")
         else:
             search_results_listbox.insert(tk.END, task_item.Subject)
 
@@ -519,7 +519,7 @@ def start_timer(timer_label, popup):
         # if time is up, show a happy frog that says "Time's up!"
         if time <= 1:
             popup_canvas = popup.winfo_children()[0]
-            popup_canvas.create_text(350, 200, text="ðŸ˜Š", fill="green", font=("Arial", 100),
+            popup_canvas.create_text(350, 200, text="😊", fill="green", font=("Arial", 100),
                                      anchor=tk.CENTER)
             time_up_text = popup_canvas.create_text(350, 300, text="Time's up!", fill="green", font=("Arial", 30),
                                                     anchor=tk.CENTER)
@@ -652,6 +652,14 @@ def create_calendar_event_from_task(task):
     calendar_event.Save()
 
 
+def delete_task(event, task):
+    # show popup to with delete icon and ask if user wants to delete task with subject
+    if messagebox.askyesno("Delete task?", "Are you sure you want to delete task with subject:\n'" + task.Subject + "'",
+                           icon="warning"):
+        task.Delete()
+        load_tasks()
+
+
 def change_category_popup(event, task):
     # create popup menu
     popup_menu = tk.Menu(root, tearoff=0)
@@ -669,9 +677,8 @@ def change_category_popup(event, task):
     popup_menu.add_cascade(label="Change category", menu=categories_menu)
     # add option to rename task Subject
     popup_menu.add_command(label="Rename task", command=lambda: rename_task(event, task))
-
-    # add option to show subtasks
-    popup_menu.add_command(label="Show subtasks", command=lambda: show_subtasks(event, task))
+    # delete task
+    popup_menu.add_command(label="Delete task", command=lambda: delete_task(event, task))
 
     # add menu to start a timer on the task
     popup_menu.add_command(label="Start timer", command=lambda: open_timer_window(event, task))
@@ -697,52 +704,6 @@ def change_category(task, category):
     load_tasks()
 
 
-# open popup window with subtasks in listbox
-def show_subtasks(event, task):
-    # create a popup window
-    popup = tk.Toplevel(root)
-    popup.title("Subtasks")
-    popup.config(bg="white")
-    popup.geometry("600x600")
-
-    # add frame with listbox and save button
-    frame = tk.Frame(popup)
-    frame.config(bg="white")
-    frame.pack(fill=tk.BOTH, expand=True)
-
-    # add listbox
-    subtasks_listbox = tk.Listbox(frame, width=50, height=10)
-    subtasks_listbox.grid(row=3, column=0, padx=10, pady=10)
-    # make search results listbox nice font
-    subtasks_listbox.config(font=("Tahoma", 10))
-
-    # add subtasks to listbox
-    subtasks = find_subtasks(task)
-    for subtask in subtasks:
-        subtasks_listbox.insert(tk.END, subtask.Subject)
-
-
-def find_subtasks(task):
-    # find all tasks that has the user property "ParentTaskID" set to the task id
-    # create an Outlook application object
-    outlook = win32com.client.Dispatch("Outlook.Application")
-    # get the namespace object
-    namespace = outlook.GetNamespace("MAPI")
-    # get the default folder for tasks
-    tasks_folder = namespace.GetDefaultFolder(13)
-    # get all the tasks in the folder
-    tasks = tasks_folder.Items
-    subtasks = []
-    for task_item in tasks:
-        # if task has ParentTaskID property
-        if task_item.UserProperties.Find("ParentTaskID") is not None:
-            # if task ParentTaskID property is equal to task id
-            if task_item.UserProperties.Find("ParentTaskID").Value == task.EntryID:
-                # add task to subtasks
-                subtasks.append(task_item)
-    return subtasks
-
-
 def draw_tasks():
     # clear
     canvas.delete("all")
@@ -750,7 +711,7 @@ def draw_tasks():
     loading_icon()
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
-        canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        canvas.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
         # draw a text under the check mark saying "No tasks"
         canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
@@ -823,7 +784,7 @@ def draw_tasks():
 
         # if task is done draw a green check mark inside the box
         if task.Status == 2:
-            check_mark = canvas.create_text(x1, y1, text="âœ“", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
+            check_mark = canvas.create_text(x1, y1, text="✓", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
             # bind check mark to mark_done function
             canvas.tag_bind(check_mark, "<Button-1>", lambda event, task=task: mark_done(event, task, check_mark))
 
@@ -937,10 +898,11 @@ def export_tasks_to_excel():
 
 
 def draw_tasks_with_icons(task, x3, y3):
+    draw_task_completion_info(task, x3, y3)
     # if task has body text
     if task.Body != "":
         # draw a paperclip icon on the right side of the task text
-        paperclip = canvas.create_text(x3 + 400, y3, text="ðŸ“Ž", fill="grey", font=("Arial", 12), anchor=tk.W)
+        paperclip = canvas.create_text(x3 + 400, y3, text="📎", fill="grey", font=("Arial", 12), anchor=tk.W)
         # when double clicking the paperclip icon open the body popup
         canvas.tag_bind(paperclip, "<Double-Button-1>", lambda event, task=task: show_task_body(event, task))
 
@@ -956,6 +918,14 @@ def draw_tasks_with_icons(task, x3, y3):
         canvas.create_text(x3, y3 + 15, text=task.DueDate.strftime("%d/%m/%Y"), fill=text_color, font=("Arial", 7),
                            anchor=tk.W)
 
+        # if task is complete draw a check mark on the right side of the due date text
+        if task.Status == 2:
+            canvas.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
+
+
+def draw_task_completion_info(task, x3, y3):
+    # if task has any actual work or estimated work or percent complete
+    if task.ActualWork or task.TotalWork or task.PercentComplete:
         # draw actual work next to due date
         canvas.create_text(x3 + 100, y3 + 15, text="Acutal: " + convert_seconds_to_string(task.ActualWork * 60),
                            fill="grey", font=("Arial", 7),
@@ -964,20 +934,14 @@ def draw_tasks_with_icons(task, x3, y3):
         canvas.create_text(x3 + 200, y3 + 15, text="Estimated: " + convert_seconds_to_string(task.TotalWork * 60),
                            fill="grey", font=("Arial", 7),
                            anchor=tk.W)
-
         # draw percentage of task done next to estimated work, if it is 100% make it green
         if task.PercentComplete == 100:
             text_color = "green"
         else:
             text_color = "grey"
-
         canvas.create_text(x3 + 300, y3 + 15, text="Done: " + str(task.PercentComplete) + "%",
                            fill=text_color, font=("Arial", 7),
                            anchor=tk.W)
-
-        # if task is complete draw a check mark on the right side of the due date text
-        if task.Status == 2:
-            canvas.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
 
 
 # make function to export tasks on canvas sql database
@@ -1034,6 +998,8 @@ def export_tasks_to_sqlite():
     conn.commit()
     # close connection
     conn.close()
+    #show message box that tasks were exported
+    messagebox.showinfo("Tasks exported", "Tasks were exported to " + file)
 
 
 # make function to import tasks from sqlite database
@@ -1121,6 +1087,7 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
                 # show message in status bar that only this category is shown
                 status_bar.config(text="Showing only " + category + " tasks")
                 tasks_by_category.append((task, category))
+                root.current_filter = show_only_this_category
                 continue
 
         # if show all tasks is true
@@ -1146,8 +1113,8 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
                     tasks_by_category.append((task, category))
                 # add task to list
 
-    # sort the list by category in ascending order
-    tasks_by_category.sort(key=lambda x: x[1])
+    # sort the list by category in ascending order and inside each category sort by last edited
+    tasks_by_category.sort(key=lambda x: x[1]) # sort by category
 
     if draw:
         draw_tasks()
@@ -1172,7 +1139,7 @@ def mark_done(event, task, check_mark=None):
     # if task is not already done
     if task.Status == 2:
         # draw a small green check mark a little bit bigger then the item, inside the item
-        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="âœ“", fill="light green",
+        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="✓", fill="light green",
                            font=("Arial", 18), anchor=tk.W)
     else:
         # delete the check mark from item
@@ -1186,7 +1153,7 @@ def mark_done(event, task, check_mark=None):
     root.after(3000, load_tasks)
 
 
-def save_task(subject, category, due_date, create_calendar_event, date_var=None, project_listbox=None, popup=None):
+def save_task(subject, category, due_date, create_calendar_event, date_var=None, popup=None):
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
     # get the namespace object
@@ -1213,25 +1180,28 @@ def save_task(subject, category, due_date, create_calendar_event, date_var=None,
     if create_calendar_event:
         create_new_calendar_event_based_on_task(category, date_var, namespace, subject)
 
-    if project_listbox is not None:
-        # get selected object of selected index in listbox
-        # get current index of listbox
-        index = project_listbox.curselection()
-        if index:
-            project = project_listbox.project_list[index[0]]
-            entry_id = project.EntryID
-            task.UserProperties.Add("ParentTaskId", 1).Value = entry_id
-
     # if due date is today
     set_due_date_on_task(due_date, task)
 
-    # save the task in the tasks folder
-    task.Save()
-    # if popup is not None
-    if popup:
-        # destroy the popup
-        popup.destroy()
-    load_tasks()
+    # if task subject is empty, ask user for subject line
+    if task.Subject == "":
+        # you didn't add any subject line, do you want to add one?
+        # info dialog, please add subject line
+        messagebox.showinfo("Empty subject", "Please add subject line")
+        if popup:
+            # focus subject entry
+            # find subject entry in popup
+            popup.focus_set()
+    else:
+        # save the task in the tasks folder
+        task.Save()
+        if root.current_filter is not None:
+            load_tasks(show_only_this_category=root.current_filter)
+        else:
+            load_tasks()
+        if popup:
+            # destroy the popup
+            popup.destroy()
 
 
 def create_new_calendar_event_based_on_task(category, due_date, namespace, subject):
@@ -1359,7 +1329,7 @@ def create_new_task_popup():
     popup = tk.Toplevel(root)
     popup.title("Create New Task")
     popup.config(bg="white")
-    popup.geometry("600x400")
+    popup.geometry("700x400")
     popup.resizable(False, False)
 
     # create a frame to hold the widgets
@@ -1409,25 +1379,40 @@ def create_new_task_popup():
     # radio buttons for due date today, tomorrow, next week
     # create a variable to store the category
     due_date_var = tk.StringVar()
-    due_date_var.set("Today")
+    due_date_var.set("None")
 
+    # no due date button
+    # Due date label:
+    due_date_label = tk.Label(frame)
+    due_date_label.config(text="Due Date:", bg="white")
+    due_date_label.grid(row=1, column=0, padx=10, pady=10)
+
+    # No due date button
+    due_date_radio_button_none = tk.Radiobutton(frame)
+    due_date_radio_button_none.config(text="None", variable=due_date_var, value="None", bg="white")
+    due_date_radio_button_none.grid(row=1, column=1, padx=10, pady=10)
+
+    # create a radio button for due date
     due_date_radio_button_today = tk.Radiobutton(frame)
     due_date_radio_button_today.config(text="Today", variable=due_date_var, value="Today", bg="white")
-    due_date_radio_button_today.grid(row=1, column=1, padx=10, pady=10)
-    # tomorrow
+    due_date_radio_button_today.grid(row=1, column=2, padx=10, pady=10)
+
+    # create a radio button for due date
     due_date_radio_button_tomorrow = tk.Radiobutton(frame)
     due_date_radio_button_tomorrow.config(text="Tomorrow", variable=due_date_var, value="Tomorrow", bg="white")
-    due_date_radio_button_tomorrow.grid(row=1, column=2, padx=10, pady=10)
-    # next week
+    due_date_radio_button_tomorrow.grid(row=1, column=3, padx=10, pady=10)
+
+    # create a radio button for due date
     due_date_radio_button_next_week = tk.Radiobutton(frame)
     due_date_radio_button_next_week.config(text="Next Week", variable=due_date_var, value="Next Week", bg="white")
-    due_date_radio_button_next_week.grid(row=1, column=3, padx=10, pady=10)
+    due_date_radio_button_next_week.grid(row=1, column=4, padx=10, pady=10)
 
     # checkbox to create a new calendar event with the same subject as the task and the same color as the category
     create_calendar_event_checkbox = tk.Checkbutton(frame)
     # add tkcalendar date picker
 
     create_calendar_event_checkbox.config(text="Create calendar event", bg="white")
+    # align checkbox with radio buttons
     create_calendar_event_checkbox.grid(row=3, column=0, padx=10, pady=10)
     # variable to store the checkbox value
     create_calendar_event_var = tk.IntVar()
@@ -1453,29 +1438,12 @@ def create_new_task_popup():
     date_entry.grid_forget()
     # save picked date in date_var
 
-    # Create a small listbox with scroll to select a project
-    project_label = tk.Label(frame)
-    project_label.config(text="Project:", bg="white")
-    project_label.grid(row=4, column=0, padx=10, pady=10)
-
-    project_var = tk.StringVar()
-    project_var.set("None")
-    project_listbox = tk.Listbox(frame)
-    project_listbox.config(width=30, height=5)
-    project_listbox.grid(row=4, column=1, padx=10, pady=10)
-    # add scroll to listbox
-    project_scroll = tk.Scrollbar(frame)
-    # insert values from get projects but display only the project name
-    project_listbox.project_list = get_projects()
-    for project in get_projects():
-        project_listbox.insert(tk.END, project.Subject)
-
     # create a button to save the task
     save_button = tk.Button(frame)
     save_button.config(text="Save",
                        command=lambda: save_task(subject_entry.get(), category_var.get(), due_date_var.get(),
                                                  create_calendar_event_var.get(), date_entry.get_date(),
-                                                 project_listbox, popup),
+                                                 popup),
                        bg="white")
 
     # create a button to cancel the task
@@ -1586,23 +1554,23 @@ def generate_html_file():
 
 def generate_dots_and_subjects(category, finished_date, html_file, subject, task):
     if task.Status == 2:
-        html_file.write("<span style='color:green; font-size:40px'>âœ“</span> ")
+        html_file.write("<span style='color:green; font-size:40px'>✓</span> ")
     if category == "A":
         # write big dot and then subject and finished date
         html_file.write(
-            "<span style='color:red; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:red; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "B":
         html_file.write(
-            "<span style='color:yellow; font-size:40px'>â—</span> " + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:yellow; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     elif category == "C":
         html_file.write(
-            "<span style='color:green; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:green; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     else:
         html_file.write(
-            "<span style='color:gold; font-size:40px'>â—</span>" + " " + subject + " - " + finished_date.strftime(
+            "<span style='color:gold; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
                 "%d/%m/%Y") + "<br>")
     # if the task has a body print it in small grey nice formatted letters under the task subject with space before and after
     if task.Body is not None:
@@ -1624,7 +1592,7 @@ def open_help_window():
     frame.pack(fill=tk.BOTH)
     # add RtfText widget to frame
     # create TkRichText
-    #create two tabs, one with licenses and one with help
+    # create two tabs, one with licenses and one with help
     # create a tab control
     tab_control = ttk.Notebook(frame)
     tab_control.pack(expand=1, fill="both")
@@ -1664,7 +1632,7 @@ def open_help_window():
     help_file_path = os.path.join(os.path.dirname(__file__), "help.rtf")
     rt.loadfile(help_file_path)
 
-    #reaonly
+    # reaonly
     rt.ReadOnly = True
 
     # close the help.txt file
@@ -1701,6 +1669,46 @@ def rename_task(event, task):
         task.Save()
         # reload tasks
         load_tasks()
+
+
+def init_categories():
+    # Create an Outlook application object
+    outlook = win32com.client.Dispatch("Outlook.Application")
+
+    # Get the default namespace
+    namespace = outlook.GetNamespace("MAPI")
+
+    # Get the categories collection
+    categories = namespace.Categories
+
+    # Define a list of category names and colors
+    category_list = [
+        ("A", 1),  # Red
+        ("B", 4),  # Yellow
+        ("C", 5),  # Green
+        ("Projects", 9),  # purple
+        ("Agenda", 3),
+    ]
+
+    # Define a function to check and create categories
+    def check_and_create_categories(category_list):
+        # Loop through the category list
+        for category_name, category_color in category_list:
+            # Check if the category exists
+            category = categories.Item(category_name)
+            if category is None:
+                # Create a new category
+                category = categories.Add(category_name, category_color)
+                print(f"Created a new category: {category.Name}")
+            else:
+                # Use the existing category
+                print(f"Found an existing category: {category.Name}")
+
+    # Call the function
+    check_and_create_categories(category_list)
+
+
+init_categories()
 
 
 def add_menus():
