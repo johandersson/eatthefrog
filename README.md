@@ -1,4 +1,4 @@
-# Eat the frog
+# Eat the frog (A-B-C)
 Task manager for Windows integrated with Outlook tasks and calendar based on ABC priority of tasks (A with color code red, B yellow, C green). 
 
 ## Add several tasks
