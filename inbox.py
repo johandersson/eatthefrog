@@ -11,13 +11,30 @@ class Inbox(tk.Toplevel): # Inherit from Toplevel instead of Tk
         self.geometry('600x600')
         self.title('Add several tasks, one on each line')
 
+        #add radiobuttons to select the priority of the task
+        self.priority = tk.StringVar()
+        self.priority.set("A")
+        self.radiobuttons = tk.Frame(self)
+        self.radiobuttons.pack()
+        #add label
+        self.label = tk.Label(self.radiobuttons, text="Priority:")
+        self.high = tk.Radiobutton(self.radiobuttons, text="A", variable=self.priority, value="A")
+        self.high.pack(side=tk.LEFT)
+        self.medium = tk.Radiobutton(self.radiobuttons, text="B", variable=self.priority, value="B")
+        self.medium.pack(side=tk.LEFT)
+        self.low = tk.Radiobutton(self.radiobuttons, text="C", variable=self.priority, value="C")
+        self.low.pack(side=tk.LEFT)
+        #project
+        self.project = tk.Radiobutton(self.radiobuttons, text="Project", variable=self.priority, value="Projects")
+        self.project.pack(side=tk.LEFT)
+        #agenda
+        self.agenda = tk.Radiobutton(self.radiobuttons, text="Agenda", variable=self.priority, value="Agenda")
+        self.agenda.pack(side=tk.LEFT)
+
         self.task_text = tk.Text(self, height=20) # Use self instead of self.root
         self.task_text.pack(pady=10)
         self.task_text.focus_set()
         # Create a label for instructions under the textbox
-        self.instructions = tk.Label(self,
-                                     text="To add an important task, end the subject with '!'\nTo add a bug end subject with !!\n To add a a project item use * in the end\nTo add a an Agenda item use?\nTo add a body to the task, use parenthesis '()'\nTo save the tasks, press CTRL+S\n To quit press CTRL+Q")
-        self.instructions.pack(pady=10)
 
         # Create a statusbar at the bottom of the window
         self.statusbar = tk.Label(self, text="No tasks saved yet", relief=tk.SUNKEN, anchor=tk.W)
@@ -55,30 +72,17 @@ class Inbox(tk.Toplevel): # Inherit from Toplevel instead of Tk
                 new_task.ReminderTime = datetime.now() + timedelta(days=2)
                 # Check if the task subject ends with "!"
 
-                if subject.endswith("!") or subject.endswith("A"):
-                    # Set the task priority to high (2)
-                    new_task.Importance = 2
-                    new_task.Subject = subject[:-1]
+                #check radiobuttons for priority and set it as a category
+                if self.priority.get() == "A":
                     new_task.Categories = "A"
-
-                if subject.endswith("?"):
-                    new_task.Categories = "Agenda"
-
-                if subject.endswith("*"):
-                    new_task.Categories
-                    new_task.Subject = subject[:-1]
-
-                if subject.endswith("!!"):
-                    new_task.Categories = "Bugs"
-                    new_task.Subject = subject[:-1]
-
-                if subject.endswith("B"):
+                elif self.priority.get() == "B":
                     new_task.Categories = "B"
-                    new_task.Subject = subject[:-1]
-
-                if subject.endswith("C"):
+                elif self.priority.get() == "C":
                     new_task.Categories = "C"
-                    new_task.Subject = subject[:-1]
+                elif self.priority.get() == "Projects":
+                    new_task.Categories = "Projects"
+                elif self.priority.get() == "Agenda":
+                    new_task.Categories = "Agenda"
 
                 new_task.Save()
 
