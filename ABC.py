@@ -25,6 +25,7 @@ dot_gap = 10  # gap between each dot and task
 text_gap = 20  # gap between each task and text
 line_height = 30  # height of each line
 root = tk.Tk()
+no_date = datetime.datetime.strptime("01/01/4501", "%d/%m/%Y")
 root.current_filter = None
 # import Note class from note.py
 from note import Note
@@ -71,8 +72,13 @@ def create_filter_buttons():
     c_filter_button.config(text="C", bg="white", command=lambda: load_tasks(show_only_this_category="C"))
     c_filter_button.pack(side=tk.LEFT)
     all_button = tk.Button(frame)
-    all_button.config(text="All", bg="white", command=lambda: load_tasks())
+    all_button.config(text="A+B+C", bg="white", command=lambda: load_tasks())
     all_button.pack(side=tk.LEFT)
+    # create a No category button
+    no_category_button = tk.Button(frame)
+    no_category_button.config(text="Not ABC", bg="white",
+                              command=lambda: load_tasks(show_only_this_category="No category"))
+    no_category_button.pack(side=tk.LEFT)
 
     reload_button = tk.Button(frame)
     reload_button.config(text="Reload", bg="white", command=lambda: load_tasks())
@@ -641,8 +647,17 @@ def create_calendar_event(task, date, popup):
     calendar_event.Start = outlook_date
     # set category to task category
     calendar_event.Categories = task.Categories
+    task.Links.Add(calendar_event)
+    calendar_event.Links.Add(task)
     # save calendar event
     calendar_event.Save()
+    # convert calendar_event to string date to display in messagebox
+    event_date_str = calendar_event.Start.strftime("%d/%m/%Y")
+    # info dialog to say that the calendar event with subject and date was created and ask if user wants to open it in outlook
+    if messagebox.askyesno("Calendar event created",
+                           "Calendar event with subject '" + calendar_event.Subject + "' and date '" + event_date_str + "' was created.\n\nDo you want to open it in Outlook?"):
+        # open calendar event in outlook
+        calendar_event.Display()
     # close popup
     popup.destroy()
 
@@ -671,22 +686,21 @@ def create_calendar_event_from_task(task):
     create_calendar_event_button.pack()
     color = get_color_code_from_category(task.Categories)
     canvas = tk.Canvas(frame)
-    #fill frame with canvas
-    #put canvas on top of frame above the labels and buttons and date picker
+    # fill frame with canvas
+    # put canvas on top of frame above the labels and buttons and date picker
     canvas.pack(fill=tk.BOTH, expand=True)
 
     # draw a quadratic shape next to the label with the color of the task category
     canvas.create_rectangle(0, 0, 50, 50, fill=color, outline=color)
-    #pack the canvas so that it fills the frame
+    # pack the canvas so that it fills the frame
 
-    #draw subject next to color
+    # draw subject next to color
     canvas.create_text(60, 25, text=task.Subject, anchor=tk.W)
-    # draw a label with the task category next to the quadratic shape
-    choose_date_label.pack()
-    #make canvas white
+    # if task has a Body draw that under the subject, but limit it to 50 characters and add ... at the end if it is longer
+    if task.Body != "":
+        canvas.create_text(60, 50, text=task.Body[:50] + "...", anchor=tk.W)
+    # make canvas white
     canvas.config(bg="white")
-    # create a date picker
-
 
 
 def delete_task(event, task):
@@ -722,7 +736,8 @@ def change_category_popup(event, task):
     popup_menu.add_command(label="Show task body", command=lambda: show_task_body(event, task))
 
     # add menu to create calendar event from task
-    popup_menu.add_command(label="Create calendar event", command=lambda: create_calendar_event_from_task(task))
+    popup_menu.add_command(label="Create calendar event based on this task",
+                           command=lambda: create_calendar_event_from_task(task))
 
     # add menu to open task in outlook
     popup_menu.add_command(label="Open task in Outlook", command=lambda: task.Display())
@@ -778,6 +793,11 @@ def draw_tasks():
         # set the color of the dot according to the category
 
         color = get_color_code_from_category(category)
+
+        #if category is something else than A, B or C or empty
+        if color == "gold":
+            #draw a small text under the task text saying the category
+            canvas.create_text(x3, y3 + 12, text="Category:"+ category, fill="black", anchor=tk.W, font=("Arial", 8))
 
         # draw a box on the left side of the task with the color of the category, without border
         check_box = canvas.create_rectangle(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius,
@@ -840,11 +860,6 @@ def get_color_code_from_category(category):
         color = "#FFFD74"
     elif category == "C":
         color = "#32de84"
-    elif category == "Projects":
-        # light blue
-        color = "#ADD8E6"
-    elif category == "Agenda":
-        color = "pink"
     else:
         color = "gold"
     return color
@@ -1150,6 +1165,10 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
                     else:
                         status_bar.config(text="Showing A, B, and C tasks")
                     # add task to list
+                    tasks_by_category.append((task, category))
+            else:
+                if show_only_this_category == "No category" and category != "A" and category != "B" and category != "C":
+                    status_bar.config(text="Showing tasks with no category")
                     tasks_by_category.append((task, category))
                 # add task to list
 
@@ -1596,7 +1615,7 @@ def generate_html_file_to_print():
     html_file.write("<style>body {font-family: 'Roboto', sans-serif;}</style>")
     # make that font the default font for the html file
     # loop through the tasks and write the html file
-    no_date = datetime.datetime.strptime("01/01/4501", "%d/%m/%Y")
+
     for task, category in load_tasks(draw=False):
         # if task is completed
         # write the task subject and finished date
@@ -1640,14 +1659,15 @@ def generate_dots_and_subjects(category, finished_date, html_file, subject, task
 
 def generate_html_task_line(task):
     color = get_color_code_from_category(task.Categories)
-    #if task has no date
+    # if task has no date
     if task.DateCompleted is None or task.DateCompleted != datetime.datetime.strptime("01/01/4501", "%d/%m/%Y"):
-        #return task without date with color from category
+        # return task without date with color from category
         return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + "<br>"
     else:
-        #return task with date with color from category
+        # return task with date with color from category
         return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + " - " + finished_date.strftime(
             "%d/%m/%Y") + "<br>"
+
 
 def open_help_window():
     # create a popup window
@@ -1730,7 +1750,8 @@ def load_note_input():
 # open message input box to rename a task Subject
 def rename_task(event, task):
     # message box with input with input that has the current task subject as default value and input text that is as long as the current task subject
-    new_subject = simpledialog.askstring("Rename task", "New subject:", initialvalue=task.Subject, width=len(task.Subject))
+    new_subject = simpledialog.askstring("Rename task", "New subject:", initialvalue=task.Subject,
+                                         width=len(task.Subject))
     # if new subject is not empty
     if new_subject:
         # set task subject to new subject
@@ -1756,8 +1777,6 @@ def init_categories():
         ("A", 1),  # Red
         ("B", 4),  # Yellow
         ("C", 5),  # Green
-        ("Projects", 9),  # purple
-        ("Agenda", 3),
     ]
 
     # Define a function to check and create categories
