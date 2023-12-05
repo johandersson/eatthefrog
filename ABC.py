@@ -6,13 +6,12 @@ import sqlite3
 import webbrowser
 from pathlib import Path
 from tkinter import messagebox, filedialog, simpledialog, ttk
-
+import tkinter as tk
 import clr
 
 clr.AddReference("System.Text.Encoding")
 import System
 import win32com.client
-import tkinter as tk  # you can use tkinter or another library to create a GUI
 from inbox import Inbox
 import tkcalendar
 
@@ -46,6 +45,11 @@ root.title("Eat the frog")
 root.geometry("800x800")
 
 
+def get_tasks_of_all_categories_not_completed():
+    # create an Outlook application object
+    return load_tasks()
+
+
 def create_filter_buttons():
     frame = tk.Frame(root)
     frame.config(bg="white")
@@ -69,16 +73,7 @@ def create_filter_buttons():
     all_button = tk.Button(frame)
     all_button.config(text="All", bg="white", command=lambda: load_tasks())
     all_button.pack(side=tk.LEFT)
-    projects_button = tk.Button(frame)
-    projects_button.config(text="Projects", bg="white", command=lambda: load_tasks(show_only_this_category="Projects"))
-    projects_button.pack(side=tk.LEFT)
 
-    # add Agenda button that load only tasks of category Agenda
-    agendas_button = tk.Button(frame)
-    agendas_button.config(text="Agendas", bg="white", command=lambda: load_tasks(show_only_this_category="Agenda"))
-    agendas_button.pack(side=tk.LEFT)
-
-    # add reload button after a small gap from projects button
     reload_button = tk.Button(frame)
     reload_button.config(text="Reload", bg="white", command=lambda: load_tasks())
     reload_button.pack(side=tk.LEFT)
@@ -480,7 +475,7 @@ def search_tasks(subject, body, search_results_listbox, popup):
     for task_item in search_results:
         # if task is done draw a green check mark on the right side of the task text
         if task_item.Status == 2:
-            search_results_listbox.insert(tk.END, task_item.Subject + " ✓")
+            search_results_listbox.insert(tk.END, task_item.Subject + " âœ“")
         else:
             search_results_listbox.insert(tk.END, task_item.Subject)
 
@@ -519,7 +514,7 @@ def start_timer(timer_label, popup):
         # if time is up, show a happy frog that says "Time's up!"
         if time <= 1:
             popup_canvas = popup.winfo_children()[0]
-            popup_canvas.create_text(350, 200, text="😊", fill="green", font=("Arial", 100),
+            popup_canvas.create_text(350, 200, text="ðŸ˜Š", fill="green", font=("Arial", 100),
                                      anchor=tk.CENTER)
             time_up_text = popup_canvas.create_text(350, 300, text="Time's up!", fill="green", font=("Arial", 30),
                                                     anchor=tk.CENTER)
@@ -622,7 +617,7 @@ def show_task_body(event, task):
         rt.Text = task.Body
 
 
-def create_calendar_event_from_task(task):
+def create_calendar_event(task, date, popup):
     # create a calendar event from task
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
@@ -640,16 +635,58 @@ def create_calendar_event_from_task(task):
     # set calendar event body to task body
     calendar_event.Body = task.Body
     # compare task.StartDate to datetime.datetime(4501, 1, 1, 0, 0)
-    if task.StartDate.date() == datetime.date(4501, 1, 1):
-        # set calendar event start date to tomorrow
-        calendar_event.Start = datetime.datetime.now() + datetime.timedelta(days=1)
-        calendar_event.AllDayEvent = True
-    else:
-        calendar_event.Start = task.DueDate
+    # set date
+    # convert date to fit pywin32
+    outlook_date = date.strftime("%m/%d/%Y")
+    calendar_event.Start = outlook_date
     # set category to task category
     calendar_event.Categories = task.Categories
     # save calendar event
     calendar_event.Save()
+    # close popup
+    popup.destroy()
+
+
+def create_calendar_event_from_task(task):
+    # open popup window to choose a date
+    popup = tk.Toplevel(root)
+    popup.title("Choose date")
+    popup.config(bg="white")
+    popup.geometry("600x400")
+    popup.resizable(False, False)
+
+    # create a frame to hold the widgets
+    frame = tk.Frame(popup)
+    frame.config(bg="white")
+    frame.pack(fill=tk.BOTH)
+    date_picker = DateEntry(frame)
+    date_picker.config(date_pattern="dd/mm/yyyy")
+    date_picker.pack()
+    # save picked date in variable
+
+    # create a button to create calendar event
+    create_calendar_event_button = tk.Button(frame)
+    create_calendar_event_button.config(text="Create calendar event", bg="white",
+                                        command=lambda: create_calendar_event(task, date_picker.get_date(), popup))
+    create_calendar_event_button.pack()
+    color = get_color_code_from_category(task.Categories)
+    canvas = tk.Canvas(frame)
+    #fill frame with canvas
+    #put canvas on top of frame above the labels and buttons and date picker
+    canvas.pack(fill=tk.BOTH, expand=True)
+
+    # draw a quadratic shape next to the label with the color of the task category
+    canvas.create_rectangle(0, 0, 50, 50, fill=color, outline=color)
+    #pack the canvas so that it fills the frame
+
+    #draw subject next to color
+    canvas.create_text(60, 25, text=task.Subject, anchor=tk.W)
+    # draw a label with the task category next to the quadratic shape
+    choose_date_label.pack()
+    #make canvas white
+    canvas.config(bg="white")
+    # create a date picker
+
 
 
 def delete_task(event, task):
@@ -672,7 +709,6 @@ def change_category_popup(event, task):
     categories_menu.add_command(label="A", command=lambda: change_category(task, "A"))
     categories_menu.add_command(label="B", command=lambda: change_category(task, "B"))
     categories_menu.add_command(label="C", command=lambda: change_category(task, "C"))
-    categories_menu.add_command(label="Projects", command=lambda: change_category(task, "Projects"))
 
     popup_menu.add_cascade(label="Change category", menu=categories_menu)
     # add option to rename task Subject
@@ -711,7 +747,7 @@ def draw_tasks():
     loading_icon()
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
-        canvas.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
         # draw a text under the check mark saying "No tasks"
         canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
@@ -719,9 +755,6 @@ def draw_tasks():
                            anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+r to reload the tasks"
         canvas.create_text(350, 380, text="Press ctrl+r to reload the tasks", fill="green", font=("Arial", 15),
-                           anchor=tk.CENTER)
-        # press ctrl+p to show project tasks
-        canvas.create_text(350, 410, text="Press ctrl+p to show project tasks", fill="green", font=("Arial", 15),
                            anchor=tk.CENTER)
 
     global task, category
@@ -744,19 +777,7 @@ def draw_tasks():
 
         # set the color of the dot according to the category
 
-        if category == "A":
-            color = "#ED2939"
-        elif category == "B":
-            color = "#FFFD74"
-        elif category == "C":
-            color = "#32de84"
-        elif category == "Projects":
-            # light blue
-            color = "#ADD8E6"
-        elif category == "Agenda":
-            color = "pink"
-        else:
-            color = "gold"
+        color = get_color_code_from_category(category)
 
         # draw a box on the left side of the task with the color of the category, without border
         check_box = canvas.create_rectangle(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius,
@@ -784,7 +805,7 @@ def draw_tasks():
 
         # if task is done draw a green check mark inside the box
         if task.Status == 2:
-            check_mark = canvas.create_text(x1, y1, text="✓", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
+            check_mark = canvas.create_text(x1, y1, text="âœ“", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
             # bind check mark to mark_done function
             canvas.tag_bind(check_mark, "<Button-1>", lambda event, task=task: mark_done(event, task, check_mark))
 
@@ -810,6 +831,23 @@ def draw_tasks():
 
     # display normal cursor after loading tasks
     reset_loading_icon()
+
+
+def get_color_code_from_category(category):
+    if category == "A":
+        color = "#ED2939"
+    elif category == "B":
+        color = "#FFFD74"
+    elif category == "C":
+        color = "#32de84"
+    elif category == "Projects":
+        # light blue
+        color = "#ADD8E6"
+    elif category == "Agenda":
+        color = "pink"
+    else:
+        color = "gold"
+    return color
 
 
 def loading_icon(window=root):
@@ -902,7 +940,7 @@ def draw_tasks_with_icons(task, x3, y3):
     # if task has body text
     if task.Body != "":
         # draw a paperclip icon on the right side of the task text
-        paperclip = canvas.create_text(x3 + 400, y3, text="📎", fill="grey", font=("Arial", 12), anchor=tk.W)
+        paperclip = canvas.create_text(x3 + 400, y3, text="ðŸ“Ž", fill="grey", font=("Arial", 12), anchor=tk.W)
         # when double clicking the paperclip icon open the body popup
         canvas.tag_bind(paperclip, "<Double-Button-1>", lambda event, task=task: show_task_body(event, task))
 
@@ -920,7 +958,7 @@ def draw_tasks_with_icons(task, x3, y3):
 
         # if task is complete draw a check mark on the right side of the due date text
         if task.Status == 2:
-            canvas.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
 
 
 def draw_task_completion_info(task, x3, y3):
@@ -998,7 +1036,7 @@ def export_tasks_to_sqlite():
     conn.commit()
     # close connection
     conn.close()
-    #show message box that tasks were exported
+    # show message box that tasks were exported
     messagebox.showinfo("Tasks exported", "Tasks were exported to " + file)
 
 
@@ -1065,10 +1103,12 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
     # get all the tasks in the folder
     tasks = tasks_folder.Items
     tasks.Sort("[CreationTime]", True)
+    today = datetime.date.today().strftime("%m/%d/%Y")
+
     if show_tasks_finished_today:
         # restrict tasks to tasks finished today
         tasks = tasks.Restrict(
-            "[Complete] = True AND [DateCompleted] >= '" + datetime.datetime.today().strftime("%d/%m/%Y") + "'")
+            "[Complete] = True AND [DateCompleted] >= '" + today + "'")
         # show message in status bar that only tasks finished today are shown
     # if task are not finished today but not show all tasks
     elif not show_all_tasks:
@@ -1114,7 +1154,7 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
                 # add task to list
 
     # sort the list by category in ascending order and inside each category sort by last edited
-    tasks_by_category.sort(key=lambda x: x[1]) # sort by category
+    tasks_by_category.sort(key=lambda x: x[1])  # sort by category
 
     if draw:
         draw_tasks()
@@ -1139,7 +1179,7 @@ def mark_done(event, task, check_mark=None):
     # if task is not already done
     if task.Status == 2:
         # draw a small green check mark a little bit bigger then the item, inside the item
-        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="✓", fill="light green",
+        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="âœ“", fill="light green",
                            font=("Arial", 18), anchor=tk.W)
     else:
         # delete the check mark from item
@@ -1310,19 +1350,6 @@ def set_date_on_calendar_event(calendar_event, due_date):
     calendar_event.Save()
 
 
-# get project tasks
-def get_projects():
-    # find all tasks with Category Projects
-    project_tasks = load_tasks(show_only_this_category="Projects", draw=False)
-    # create a list to store the project tasks
-    project_tasks_list = []
-    # return the first object in the tuple as a list
-    for project_task in project_tasks:
-        project_tasks_list.append(project_task[0])
-
-    return project_tasks_list
-
-
 # create a new task in a popup window
 def create_new_task_popup():
     # create a popup window
@@ -1480,14 +1507,6 @@ def delete_frog_and_text(frog_smiling_face, eat_the_frog_text):
     load_tasks()
 
 
-# function to hide Project tasks
-def hide_project_tasks():
-    # loop through the tasks and hide the ones with category Projects
-    load_tasks(show_projects=True)
-
-
-# call hide project tasks function when pressing CTRL+H
-root.bind("<Control-p>", lambda event: hide_project_tasks())
 root.bind("<Control-t>", lambda event: load_tasks(show_tasks_finished_today=True))
 root.bind("<Control-a>", lambda event: load_tasks(show_only_this_category="A"))
 root.bind("<Control-b>", lambda event: load_tasks(show_only_this_category="B"))
@@ -1524,7 +1543,7 @@ def generate_html_file():
     html_file.write("<style>body {font-family: 'Roboto', sans-serif;}</style>")
     # make that font the default font for the html file
     # loop through the tasks and write the html file
-    for task, category in load_tasks(show_all_tasks=True):
+    for task, category in load_tasks(show_all_tasks=True, draw=False):
         # if task is completed
         # write the task subject and finished date
         # if task is category A, B, or C, draw a dot with the color of the category
@@ -1552,31 +1571,83 @@ def generate_html_file():
     webbrowser.open(file_path)
 
 
+def generate_html_file_to_print():
+    # while html file is being generated show a blinking loading text on root window
+    # create a label to display the task subject
+
+    file_path = filedialog.asksaveasfilename(defaultextension=".html", filetypes=[("HTML files", "*.html")])
+    # if file path is empty
+    if file_path == "":
+        # return
+        return
+
+    # open the html file with utf-8 encoding
+    html_file = open(file_path, "w", encoding="utf-8")
+    # if open was successful
+    if not html_file:
+        # show error message
+        tk.messagebox.showerror("Error", "Could not open file")
+
+    # write the html file header
+    html_file.write("<html><head><title>Finished Tasks</title></head><body>")
+    # load nice google font
+    html_file.write("<link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>")
+    # make the font of the html file Roboto
+    html_file.write("<style>body {font-family: 'Roboto', sans-serif;}</style>")
+    # make that font the default font for the html file
+    # loop through the tasks and write the html file
+    no_date = datetime.datetime.strptime("01/01/4501", "%d/%m/%Y")
+    for task, category in load_tasks(draw=False):
+        # if task is completed
+        # write the task subject and finished date
+        # if task is category A, B, or C, draw a dot with the color of the category
+
+        if task.Status != 2 and task.DateCompleted != no_date:
+            # get the task subject
+            subject = task.Subject
+            # get the task finished date
+            finished_date = task.DateCompleted
+            # get the task category
+            category = task.Categories
+            # write the task subject and finished date
+            # if task is finished draw a big green checkmark before the dot
+            generate_dots_and_subjects(category, finished_date, html_file, subject, task)
+
+    # write the html file footer
+    html_file.write("</body></html>")
+    # remove blinking loading text
+    # reload canvas
+    load_tasks()
+    # close the html file
+    html_file.close()
+    # send html_file to printer, ask user if he wants to print it
+    # open the html file
+    import webbrowser
+    # open the html file in the default browser
+    webbrowser.open(file_path)
+
+
 def generate_dots_and_subjects(category, finished_date, html_file, subject, task):
     if task.Status == 2:
-        html_file.write("<span style='color:green; font-size:40px'>✓</span> ")
-    if category == "A":
-        # write big dot and then subject and finished date
-        html_file.write(
-            "<span style='color:red; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
-                "%d/%m/%Y") + "<br>")
-    elif category == "B":
-        html_file.write(
-            "<span style='color:yellow; font-size:40px'>●</span> " + " " + subject + " - " + finished_date.strftime(
-                "%d/%m/%Y") + "<br>")
-    elif category == "C":
-        html_file.write(
-            "<span style='color:green; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
-                "%d/%m/%Y") + "<br>")
-    else:
-        html_file.write(
-            "<span style='color:gold; font-size:40px'>●</span>" + " " + subject + " - " + finished_date.strftime(
-                "%d/%m/%Y") + "<br>")
+        html_file.write("<span style='color:green; font-size:40px'>âœ“</span>")
+
+    html_file.write(generate_html_task_line(task))
     # if the task has a body print it in small grey nice formatted letters under the task subject with space before and after
     if task.Body is not None:
         html_file.write(
             "<span style='color:grey; font-size:10px; margin-left: 20px; margin-right: 20px;'>" + task.Body + "</span><br>")
 
+
+def generate_html_task_line(task):
+    color = get_color_code_from_category(task.Categories)
+    #if task has no date
+    if task.DateCompleted is None or task.DateCompleted != datetime.datetime.strptime("01/01/4501", "%d/%m/%Y"):
+        #return task without date with color from category
+        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + "<br>"
+    else:
+        #return task with date with color from category
+        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + " - " + finished_date.strftime(
+            "%d/%m/%Y") + "<br>"
 
 def open_help_window():
     # create a popup window
@@ -1658,9 +1729,8 @@ def load_note_input():
 
 # open message input box to rename a task Subject
 def rename_task(event, task):
-    # message box with input
-    new_subject = simpledialog.askstring("Rename task", "Enter new subject for task", parent=root,
-                                         initialvalue=task.Subject)
+    # message box with input with input that has the current task subject as default value and input text that is as long as the current task subject
+    new_subject = simpledialog.askstring("Rename task", "New subject:", initialvalue=task.Subject, width=len(task.Subject))
     # if new subject is not empty
     if new_subject:
         # set task subject to new subject
@@ -1731,6 +1801,9 @@ def add_menus():
     export_menu.add_command(label="Tasks from sqlite database", command=import_tasks_from_sqlite)
     # add generate html file to file menu
     export_menu.add_command(label="HTML-file with done tasks", command=lambda: generate_html_file())
+    # add option to print
+    export_menu.add_command(label="HTML-file with not done tasks", command=lambda: generate_html_file_to_print())
+    # add option to print
 
     # add separator
     file_menu.add_separator()
@@ -1752,8 +1825,6 @@ def add_menus():
     show_tasks_menu.add_command(label="Show only category B", command=lambda: load_tasks(show_only_this_category="B"))
     # add show only category C to show tasks menu
     show_tasks_menu.add_command(label="Show only category C", command=lambda: load_tasks(show_only_this_category="C"))
-    # add show only category C to show tasks menu
-    show_tasks_menu.add_command(label="Show only project tasks", command=lambda: load_tasks(show_projects=True))
 
     # add file menu to load Inbox class
     file_menu.add_command(label="Add several tasks", command=lambda: load_inbox())
