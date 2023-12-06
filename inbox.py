@@ -25,11 +25,9 @@ class Inbox(tk.Toplevel): # Inherit from Toplevel instead of Tk
         self.low = tk.Radiobutton(self.radiobuttons, text="C", variable=self.priority, value="C")
         self.low.pack(side=tk.LEFT)
         #project
-        self.project = tk.Radiobutton(self.radiobuttons, text="Project", variable=self.priority, value="Projects")
+        self.project = tk.Radiobutton(self.radiobuttons, text="No category", variable=self.priority, value="No category")
         self.project.pack(side=tk.LEFT)
-        #agenda
-        self.agenda = tk.Radiobutton(self.radiobuttons, text="Agenda", variable=self.priority, value="Agenda")
-        self.agenda.pack(side=tk.LEFT)
+       
 
         self.task_text = tk.Text(self, height=20) # Use self instead of self.root
         self.task_text.pack(pady=10)
@@ -67,7 +65,6 @@ class Inbox(tk.Toplevel): # Inherit from Toplevel instead of Tk
                     body = parts[1].strip(")")
                     new_task.Body = body
 
-                new_task.DueDate = datetime.now() + timedelta(days=1)
                 new_task.ReminderSet = True
                 new_task.ReminderTime = datetime.now() + timedelta(days=2)
                 # Check if the task subject ends with "!"
@@ -79,11 +76,9 @@ class Inbox(tk.Toplevel): # Inherit from Toplevel instead of Tk
                     new_task.Categories = "B"
                 elif self.priority.get() == "C":
                     new_task.Categories = "C"
-                elif self.priority.get() == "Projects":
-                    new_task.Categories = "Projects"
-                elif self.priority.get() == "Agenda":
-                    new_task.Categories = "Agenda"
-
+                elif self.priority.get() == "No category":
+                    new_task.Categories = ""
+       
                 new_task.Save()
 
     def save_tasks(self):
