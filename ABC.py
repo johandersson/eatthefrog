@@ -14,7 +14,6 @@ import System
 import win32com.client
 from inbox import Inbox
 import tkcalendar
-
 from tkcalendar import DateEntry
 
 from tkrichtext.tkrichtext import TkRichtext
@@ -41,7 +40,7 @@ root.bind("<Escape>", close_window)
 # make the window full screen from start
 # root.attributes('-fullscreen', True)
 root.config(bg="white")
-# root title "Eat the frog"
+# root title "Eat the frog (A-B-C)"
 root.title("Eat the frog")
 root.geometry("800x800")
 
@@ -711,6 +710,8 @@ def delete_task(event, task):
         load_tasks()
 
 
+
+
 def change_category_popup(event, task):
     # create popup menu
     popup_menu = tk.Menu(root, tearoff=0)
@@ -794,10 +795,10 @@ def draw_tasks():
 
         color = get_color_code_from_category(category)
 
-        #if category is something else than A, B or C or empty
-        if color == "gold":
-            #draw a small text under the task text saying the category
-            canvas.create_text(x3, y3 + 12, text="Category:"+ category, fill="black", anchor=tk.W, font=("Arial", 8))
+        # if category is something else than A, B or C or empty
+        if color == "gold" and category!="":
+            # draw a small text under the task text saying the category
+            canvas.create_text(x3, y3 + 12, text="Category:" + category, fill="black", anchor=tk.W, font=("Arial", 8))
 
         # draw a box on the left side of the task with the color of the category, without border
         check_box = canvas.create_rectangle(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius, y1 + dot_radius,
@@ -1168,7 +1169,7 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
                     tasks_by_category.append((task, category))
             else:
                 if show_only_this_category == "No category" and category != "A" and category != "B" and category != "C":
-                    status_bar.config(text="Showing tasks with no category")
+                    status_bar.config(text="Showing tasks that are not prioritized with A-B-C")
                     tasks_by_category.append((task, category))
                 # add task to list
 
@@ -1229,7 +1230,8 @@ def save_task(subject, category, due_date, create_calendar_event, date_var=None,
     task.Subject = subject
     # set the due date
     # set the category
-    task.Categories = category
+    if category != "No category":
+        task.Categories = category
     # set due date to tomorrow
     # get tomorrow's date
     # set the reminder to tomorrow at 9 AM
@@ -1421,6 +1423,11 @@ def create_new_task_popup():
     category_radio_button_c = tk.Radiobutton(frame)
     category_radio_button_c.config(text="C", variable=category_var, value="C", bg="white")
     category_radio_button_c.grid(row=2, column=3, padx=10, pady=10)
+
+     # create a radio button for category
+    category_radio_button_no = tk.Radiobutton(frame)
+    category_radio_button_no.config(text="No category", variable=category_var, value="No category", bg="white")
+    category_radio_button_no.grid(row=2, column=4, padx=10, pady=10)
 
     # radio buttons for due date today, tomorrow, next week
     # create a variable to store the category
