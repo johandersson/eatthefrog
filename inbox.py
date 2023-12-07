@@ -65,10 +65,6 @@ class Inbox(tk.Toplevel): # Inherit from Toplevel instead of Tk
                     body = parts[1].strip(")")
                     new_task.Body = body
 
-                new_task.ReminderSet = True
-                new_task.ReminderTime = datetime.now() + timedelta(days=2)
-                # Check if the task subject ends with "!"
-
                 #check radiobuttons for priority and set it as a category
                 if self.priority.get() == "A":
                     new_task.Categories = "A"
