@@ -3,6 +3,8 @@ import datetime
 import locale
 import os
 import sqlite3
+import sys
+import traceback
 import webbrowser
 from pathlib import Path
 from tkinter import messagebox, filedialog, simpledialog, ttk
@@ -40,8 +42,7 @@ root.bind("<Escape>", close_window)
 # make the window full screen from start
 # root.attributes('-fullscreen', True)
 root.config(bg="white")
-# root title "Eat the frog (A-B-C)"
-root.title("Eat the frog")
+root.title("Eat the frog (A-B-C)")
 root.geometry("800x800")
 
 
@@ -60,7 +61,10 @@ def create_filter_buttons():
     plus_button.pack(side=tk.LEFT)
     # set text to +
     plus_button.config(text="+", bg="white", command=lambda: create_new_task_popup())
-
+    no_category_button = tk.Button(frame)
+    no_category_button.config(text="Inbox", bg="white",
+                              command=lambda: load_tasks(show_only_this_category="No category"))
+    no_category_button.pack(side=tk.LEFT)
     a_filter_button = tk.Button(frame)
     a_filter_button.config(text="A", bg="white", command=lambda: load_tasks(show_only_this_category="A"))
     a_filter_button.pack(side=tk.LEFT)
@@ -74,10 +78,6 @@ def create_filter_buttons():
     all_button.config(text="A+B+C", bg="white", command=lambda: load_tasks())
     all_button.pack(side=tk.LEFT)
     # create a No category button
-    no_category_button = tk.Button(frame)
-    no_category_button.config(text="Not ABC", bg="white",
-                              command=lambda: load_tasks(show_only_this_category="No category"))
-    no_category_button.pack(side=tk.LEFT)
 
     reload_button = tk.Button(frame)
     reload_button.config(text="Reload", bg="white", command=lambda: load_tasks())
@@ -150,7 +150,7 @@ def open_timer_window(event, task_to_start_timer_on):
     # make the window full screen from start
     # root.attributes('-fullscreen', True)
     popup.config(bg="white")
-    # root title "Eat the frog"
+    # root title "Eat the frog (A-B-C)"
     popup.title("Timer")
     # make root window full screen
     popup.state("zoomed")
@@ -480,7 +480,7 @@ def search_tasks(subject, body, search_results_listbox, popup):
     for task_item in search_results:
         # if task is done draw a green check mark on the right side of the task text
         if task_item.Status == 2:
-            search_results_listbox.insert(tk.END, task_item.Subject + " âœ“")
+            search_results_listbox.insert(tk.END, task_item.Subject + " ✓")
         else:
             search_results_listbox.insert(tk.END, task_item.Subject)
 
@@ -519,7 +519,7 @@ def start_timer(timer_label, popup):
         # if time is up, show a happy frog that says "Time's up!"
         if time <= 1:
             popup_canvas = popup.winfo_children()[0]
-            popup_canvas.create_text(350, 200, text="ðŸ˜Š", fill="green", font=("Arial", 100),
+            popup_canvas.create_text(350, 200, text="😊", fill="green", font=("Arial", 100),
                                      anchor=tk.CENTER)
             time_up_text = popup_canvas.create_text(350, 300, text="Time's up!", fill="green", font=("Arial", 30),
                                                     anchor=tk.CENTER)
@@ -710,7 +710,20 @@ def delete_task(event, task):
         load_tasks()
 
 
+def change_priority_to_low(task):
+    task.Importance = 0
+    task.Save()
+    load_tasks()
 
+def change_priority_to_normal(task):
+    task.Importance = 1
+    task.Save()
+    load_tasks()
+
+def change_priority_to_high(task):
+    task.Importance = 2
+    task.Save()
+    load_tasks()
 
 def change_category_popup(event, task):
     # create popup menu
@@ -726,10 +739,19 @@ def change_category_popup(event, task):
     categories_menu.add_command(label="C", command=lambda: change_category(task, "C"))
 
     popup_menu.add_cascade(label="Change category", menu=categories_menu)
+    #add choice to change priority
+    #add submenu to the above change priority
+    priority_menu = tk.Menu(popup_menu, tearoff=0)
+    priority_menu.add_command(label="Low", command=lambda: change_priority_to_low(task))
+    priority_menu.add_command(label="Normal", command=lambda: change_priority_to_normal(task))
+    priority_menu.add_command(label="High", command=lambda: change_priority_to_high(task))
+    popup_menu.add_cascade(label="Change priority", menu=priority_menu)
     # add option to rename task Subject
     popup_menu.add_command(label="Rename task", command=lambda: rename_task(event, task))
     # delete task
     popup_menu.add_command(label="Delete task", command=lambda: delete_task(event, task))
+    #move single task to inbox
+    popup_menu.add_command(label="Move to inbox", command=lambda: move_single_task_to_inbox(task))
 
     # add menu to start a timer on the task
     popup_menu.add_command(label="Start timer", command=lambda: open_timer_window(event, task))
@@ -763,7 +785,7 @@ def draw_tasks():
     loading_icon()
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
-        canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        canvas.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
         # draw a text under the check mark saying "No tasks"
         canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
@@ -796,7 +818,7 @@ def draw_tasks():
         color = get_color_code_from_category(category)
 
         # if category is something else than A, B or C or empty
-        if color == "gold" and category!="":
+        if color == "gold" and category != "":
             # draw a small text under the task text saying the category
             canvas.create_text(x3, y3 + 12, text="Category:" + category, fill="black", anchor=tk.W, font=("Arial", 8))
 
@@ -826,7 +848,7 @@ def draw_tasks():
 
         # if task is done draw a green check mark inside the box
         if task.Status == 2:
-            check_mark = canvas.create_text(x1, y1, text="âœ“", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
+            check_mark = canvas.create_text(x1, y1, text="✓", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
             # bind check mark to mark_done function
             canvas.tag_bind(check_mark, "<Button-1>", lambda event, task=task: mark_done(event, task, check_mark))
 
@@ -956,12 +978,13 @@ def draw_tasks_with_icons(task, x3, y3):
     # if task has body text
     if task.Body != "":
         # draw a paperclip icon on the right side of the task text
-        paperclip = canvas.create_text(x3 + 400, y3, text="ðŸ“Ž", fill="grey", font=("Arial", 12), anchor=tk.W)
+        paperclip = canvas.create_text(x3 + 400, y3, text="📎", fill="grey", font=("Arial", 12), anchor=tk.W)
         # when double clicking the paperclip icon open the body popup
         canvas.tag_bind(paperclip, "<Double-Button-1>", lambda event, task=task: show_task_body(event, task))
 
     # if task has due date and due date is in the current year or the next
-    if task.DueDate and task.DueDate.year in [datetime.datetime.today().year, datetime.datetime.today().year + 1]:
+    if task.DueDate and task.DueDate.year in [datetime.datetime.today().year, datetime.datetime.today().year + 1] \
+            and task.Categories != "A" and task.Categories != "B" and task.Categories != "C":
         due_date = datetime.datetime.strptime(task.DueDate.strftime("%d/%m/%Y"), "%d/%m/%Y")
         # draw due date in small font right under the task text, if the task is due, make it red
         if due_date < datetime.datetime.today():
@@ -974,7 +997,7 @@ def draw_tasks_with_icons(task, x3, y3):
 
         # if task is complete draw a check mark on the right side of the due date text
         if task.Status == 2:
-            canvas.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
 
 
 def draw_task_completion_info(task, x3, y3):
@@ -1106,7 +1129,7 @@ def import_tasks_from_sqlite():
 
 
 def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_tasks=False,
-               show_only_this_category=None, draw=True):
+               show_only_this_category=None, draw=True, first_time_loading_tasks=False):
     # clear status bar
     status_bar.config(text="")
     global tasks_by_category, task, category
@@ -1149,7 +1172,7 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
         # if show all tasks is true
         if show_all_tasks:
             # show message in status bar that all tasks are shown
-            status_bar.config(text="Showing all tasks")
+            status_bar.config(text="Showing all tasks, including completed tasks")
             # add task to list
             tasks_by_category.append((task, category))
             continue
@@ -1173,8 +1196,17 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
                     tasks_by_category.append((task, category))
                 # add task to list
 
-    # sort the list by category in ascending order and inside each category sort by last edited
-    tasks_by_category.sort(key=lambda x: x[1])  # sort by category
+    # sort the list by category in ascending order
+    tasks_by_category.sort(key=lambda x: x[1])
+    #inside category sort by priority
+
+    if show_only_this_category == "No category":
+        #sort tasks by priority in outlook, high priority first
+        tasks_by_category.sort(key=lambda x: x[0].Importance, reverse=True)
+    # check how many tasks are in the list and show a warning if there are more than 20 tasks, and then ask the user if he wants to see the warning next time and save his anser in a config file
+
+    if not first_time_loading_tasks:
+        check_number_of_tasks_and_warn(tasks_by_category)
 
     if draw:
         draw_tasks()
@@ -1182,7 +1214,158 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
     return tasks_by_category
 
 
-load_tasks()
+# function to move tasks to inbox with a popup window with a listbox where you can multi select tasks and then click a button to move them to the inbox
+def move_tasks_to_inbox(tasks_by_category):
+    # create popup window
+    popup = tk.Toplevel(root)
+    popup.title("Move tasks to inbox")
+    popup.config(bg="white")
+    popup.geometry("600x400")
+    popup.resizable(False, False)
+
+    # create a frame to hold the widgets
+    frame = tk.Frame(popup)
+    frame.config(bg="white")
+    # make frame as big as the window
+    frame.pack(fill=tk.BOTH, expand=True)
+    # label that says "Select one or multiple tasks to move to inbox"
+    label = tk.Label(frame)
+    label.config(text="Select one or multiple tasks to move to inbox", bg="white", font=("Arial", 12))
+    label.pack()
+    # create a listbox to hold the tasks
+    listbox = tk.Listbox(frame, selectmode=tk.MULTIPLE)
+    listbox.config(bg="white", fg="black")
+    # make listbox as big as the window except for the buttons under it
+    listbox.pack(fill=tk.BOTH, expand=True)
+
+    # create a scrollbar for the listbox
+    scrollbar = tk.Scrollbar(listbox)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    # bind scrollbar to listbox
+    listbox.config(yscrollcommand=scrollbar.set)
+    scrollbar.config(command=listbox.yview)
+
+    # add tasks to listbox
+    for task, category in tasks_by_category:
+        listbox.insert(tk.END, task.Subject)
+
+    # create a button to move tasks to inbox
+    move_to_inbox_button = tk.Button(frame)
+    move_to_inbox_button.config(text="Move tasks to inbox", bg="white",
+                                command=lambda: move_tasks_to_inbox_command(listbox, popup))
+    move_to_inbox_button.pack()
+
+    # create a button to close the popup
+    close_button = tk.Button(frame)
+    # make space between buttons
+    close_button.config(pady=10)
+
+    close_button.config(text="Cancel", bg="white", command=popup.destroy)
+    close_button.pack()
+
+
+# move tasks to inbox command
+def move_tasks_to_inbox_command(listbox, popup):
+    # get selected tasks
+    selected_tasks = listbox.curselection()
+    # create an Outlook application object
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    # get the namespace object
+    namespace = outlook.GetNamespace("MAPI")
+    # get the default folder for tasks
+    tasks_folder = namespace.GetDefaultFolder(13)
+    # get all the tasks in the folder
+    tasks = tasks_folder.Items
+    # loop through selected tasks
+    for task in selected_tasks:
+        # get task
+        task = tasks_by_category[task][0]
+        # set category to no category
+        task.Categories = ""
+        # save task
+        task.Save()
+    # destroy popup
+    popup.destroy()
+    # reload tasks
+    load_tasks()
+
+def move_single_task_to_inbox(task):
+    task.Categories = ""
+    task.Save()
+    load_tasks()
+
+def check_number_of_tasks_and_warn(tasks_by_category):
+    # read task limit from config.db
+    # open config.db
+    if os.path.exists("config.db"):
+        try:
+            conn = sqlite3.connect("config.db")
+        except:
+            # message box that config.db does not exist
+            stacktrace = traceback.format_exc()
+
+            # messagebox.showerror("Error", "config.db could not be opened" + "\n\n" + stacktrace)
+            # print stack trace
+            print(stacktrace)
+            # create config.db
+            conn = sqlite3.connect("config.db")
+            # create cursor
+            return
+
+    else:
+        # if config.db does not exist create it
+        conn = sqlite3.connect("config.db")
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS settings (warning_limit INTEGER, warning_limit_number INTEGER)")
+        conn.commit()
+
+        try:
+            # create cursor
+            cursor = conn.cursor()
+            # create table if not exists
+            cursor.execute("CREATE TABLE IF NOT EXISTS settings (warning_limit INTEGER, warning_limit_number INTEGER)")
+            cursor.execute("CREATE TABLE IF NOT EXISTS move (todays_date TEXT)")
+            # check if warning limit is set to 1
+            cursor.execute("SELECT warning_limit FROM settings")
+            # fetch warning limit but prevent error if warning limit is not set
+            warning_limit = cursor.fetchone()[0]
+        except:
+            warning_limit = None
+        # prevent warning limit is not subscribtable error
+        if warning_limit and warning_limit == 1:
+            # get warning limit number
+            cursor.execute("SELECT warning_limit_number FROM settings")
+            warning_limit_number = cursor.fetchone()[0]
+            # if number of tasks is greater than warning limit number
+            if len(tasks_by_category) > warning_limit_number:
+                # get value from move table and compare it to todays date
+                cursor.execute("SELECT todays_date FROM move")
+                # fetch todays date but prevent error if todays date is not set
+                try:
+                    todays_date = cursor.fetchone()[0]
+                except:
+                    todays_date = None
+
+                # if todays date is not set or todays date is not equal to todays date
+                if todays_date is None or todays_date != datetime.datetime.today().strftime("%d/%m/%Y"):
+                    # show info dialog that there are more than warning limit number, and ask the user if he want's to move some tasks to the inbox
+                    if messagebox.askyesno("Warning", "There are more than " + str(
+                            warning_limit_number) + " tasks in your to do list.\nThat's a lot on your plate for today.\n\nDo you want to move some tasks to the inbox?"):
+                        # move tasks to inbox
+                        move_tasks_to_inbox(tasks_by_category)
+                        # clear move table
+
+                    cursor.execute("DELETE FROM move")
+                    # insert only todays date into move table
+                    cursor.execute("INSERT INTO move VALUES (?)", (datetime.datetime.today().strftime("%d/%m/%Y"),))
+                    # commit changes
+                    conn.commit()
+        # close connection
+        conn.close()
+
+
+load_tasks(first_time_loading_tasks=True)
 
 
 # create a root window for the GUI
@@ -1199,7 +1382,7 @@ def mark_done(event, task, check_mark=None):
     # if task is not already done
     if task.Status == 2:
         # draw a small green check mark a little bit bigger then the item, inside the item
-        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="âœ“", fill="light green",
+        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="✓", fill="light green",
                            font=("Arial", 18), anchor=tk.W)
     else:
         # delete the check mark from item
@@ -1234,14 +1417,9 @@ def save_task(subject, category, due_date, create_calendar_event, date_var=None,
         task.Categories = category
     # set due date to tomorrow
     # get tomorrow's date
-    # set the reminder to tomorrow at 9 AM
-    task.ReminderSet = True
-
     # check if create calendar event is checked
     if create_calendar_event:
         create_new_calendar_event_based_on_task(category, date_var, namespace, subject)
-
-    # if due date is today
     set_due_date_on_task(due_date, task)
 
     # if task subject is empty, ask user for subject line
@@ -1296,9 +1474,7 @@ def set_due_date_on_task(due_date, task):
         task.StartDate = datetime.datetime.today()
         # set due date to today
         task.DueDate = datetime.datetime.today()
-        # set reminder date
-        task.ReminderTime = datetime.datetime.today() + datetime.timedelta(days=1)
-        task.ReminderTime = task.ReminderTime.replace(hour=17, minute=0, second=0, microsecond=0)
+
 
     # if due date is tomorrow
     elif due_date == "Tomorrow":
@@ -1306,9 +1482,6 @@ def set_due_date_on_task(due_date, task):
         task.StartDate = datetime.datetime.today()
         # set due date to tomorrow
         task.DueDate = datetime.datetime.today() + datetime.timedelta(days=1)
-        # set reminder date
-        task.ReminderTime = datetime.datetime.today() + datetime.timedelta(days=1)
-        task.ReminderTime = task.ReminderTime.replace(hour=9, minute=0, second=0, microsecond=0)
 
     # if due date is next week
     elif due_date == "Next Week":
@@ -1316,10 +1489,6 @@ def set_due_date_on_task(due_date, task):
         task.StartDate = datetime.datetime.today()
         # set due date to tomorrow
         task.DueDate = datetime.datetime.today() + datetime.timedelta(days=7)
-        # set reminder date
-        task.ReminderTime = datetime.datetime.today() + datetime.timedelta(days=1)
-        # 9 Am
-        task.ReminderTime = task.ReminderTime.replace(hour=9, minute=0, second=0, microsecond=0)
 
 
 def set_date_on_calendar_event(calendar_event, due_date):
@@ -1407,27 +1576,27 @@ def create_new_task_popup():
 
     # create a variable to store the category
     category_var = tk.StringVar()
-    category_var.set("A")
+    category_var.set("No category")
+
+    # create a radio button for category
+    category_radio_button_no = tk.Radiobutton(frame)
+    category_radio_button_no.config(text="No category", variable=category_var, value="No category", bg="white")
+    category_radio_button_no.grid(row=2, column=1, padx=10, pady=10)
 
     # create a radio button for category
     category_radio_button_a = tk.Radiobutton(frame)
     category_radio_button_a.config(text="A", variable=category_var, value="A", bg="white")
-    category_radio_button_a.grid(row=2, column=1, padx=10, pady=10)
+    category_radio_button_a.grid(row=2, column=2, padx=10, pady=10)
 
     # create a radio button for category
     category_radio_button_b = tk.Radiobutton(frame)
     category_radio_button_b.config(text="B", variable=category_var, value="B", bg="white")
-    category_radio_button_b.grid(row=2, column=2, padx=10, pady=10)
+    category_radio_button_b.grid(row=2, column=3, padx=10, pady=10)
 
     # create a radio button for category
     category_radio_button_c = tk.Radiobutton(frame)
     category_radio_button_c.config(text="C", variable=category_var, value="C", bg="white")
-    category_radio_button_c.grid(row=2, column=3, padx=10, pady=10)
-
-     # create a radio button for category
-    category_radio_button_no = tk.Radiobutton(frame)
-    category_radio_button_no.config(text="No category", variable=category_var, value="No category", bg="white")
-    category_radio_button_no.grid(row=2, column=4, padx=10, pady=10)
+    category_radio_button_c.grid(row=2, column=4, padx=10, pady=10)
 
     # radio buttons for due date today, tomorrow, next week
     # create a variable to store the category
@@ -1655,7 +1824,7 @@ def generate_html_file_to_print():
 
 def generate_dots_and_subjects(category, finished_date, html_file, subject, task):
     if task.Status == 2:
-        html_file.write("<span style='color:green; font-size:40px'>âœ“</span>")
+        html_file.write("<span style='color:green; font-size:40px'>✓</span>")
 
     html_file.write(generate_html_task_line(task))
     # if the task has a body print it in small grey nice formatted letters under the task subject with space before and after
@@ -1669,10 +1838,10 @@ def generate_html_task_line(task):
     # if task has no date
     if task.DateCompleted is None or task.DateCompleted != datetime.datetime.strptime("01/01/4501", "%d/%m/%Y"):
         # return task without date with color from category
-        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + "<br>"
+        return "<span style='color:" + color + "; font-size:40px'>●</span>" + " " + task.Subject + "<br>"
     else:
         # return task with date with color from category
-        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + " - " + finished_date.strftime(
+        return "<span style='color:" + color + "; font-size:40px'>●</span>" + " " + task.Subject + " - " + finished_date.strftime(
             "%d/%m/%Y") + "<br>"
 
 
@@ -1807,6 +1976,131 @@ def init_categories():
 init_categories()
 
 
+def save_settings(warning_limit, warning_limit_number, popup):
+    # save settings in sqlite database config.db in table settings
+    # create a connection to the database
+    connection = sqlite3.connect("config.db")
+    # create a cursor
+    cursor = connection.cursor()
+    # create a table if it doesn't exist
+    cursor.execute("CREATE TABLE IF NOT EXISTS settings (warning_limit INTEGER, warning_limit_number INTEGER)")
+    # insert the settings into the table
+    # check if warning limit is an IntVar
+    warning_limit = warning_limit.get()
+    # check if there is already any value in the settings table
+    value_exists = cursor.execute("SELECT * FROM settings")
+    # fetch the result
+    # if result is not None, update the values
+    if value_exists is not None:
+        # delete all values from the settings table
+        cursor.execute("DELETE FROM settings")
+        # insert the values
+        cursor.execute("INSERT INTO settings VALUES (?, ?)", (warning_limit, warning_limit_number))
+    else:
+        # insert the values
+        cursor.execute("INSERT INTO settings VALUES (?, ?)", (warning_limit, warning_limit_number))
+    # commit the changes
+    connection.commit()
+
+    # close the connection
+    connection.close()
+
+    # destroy popup
+    popup.destroy()
+
+
+# load settings function which shows a popup window where you can turn on and of the task limit setting and how many tasks is the warning limit
+def load_settings():
+    # create a popup window
+    popup = tk.Toplevel(root)
+    popup.title("Settings")
+    popup.config(bg="white")
+    popup.geometry("700x500")
+    popup.resizable(False, False)
+
+    # create a frame to hold the widgets
+    frame = tk.Frame(popup)
+    frame.config(bg="white")
+    frame.pack(fill=tk.BOTH)
+    # create a label to display the task due date
+    warning_limit_label = tk.Label(frame)
+    warning_limit_label.config(text="Warning limit:", bg="white")
+    warning_limit_label.grid(row=1, column=0, padx=10, pady=10)
+
+    warning_limit_var = tk.IntVar()
+    warning_limit_var.set(0)
+
+    # create a radio button for category
+    warning_limit_radio_button_no = tk.Radiobutton(frame)
+    warning_limit_radio_button_no.config(text="No limit", variable=warning_limit_var, value=0, bg="white")
+
+    # create a radio button for category
+    warning_limit_radio_button_yes = tk.Radiobutton(frame)
+    warning_limit_radio_button_yes.config(text="Limit", variable=warning_limit_var, value=1, bg="white")
+
+    # create an entry to get the task subject
+    warning_limit_entry = tk.Entry(frame)
+    warning_limit_entry.config(width=30)
+    # write a label right after the entry that says tasks
+    warning_limit_entry_label = tk.Label(frame)
+    warning_limit_entry_label.config(text="tasks", bg="white")
+
+    # put the radio buttons before the entry
+    warning_limit_radio_button_no.grid(row=1, column=1, padx=10, pady=10)
+    warning_limit_radio_button_yes.grid(row=1, column=2, padx=10, pady=10)
+    warning_limit_entry.grid(row=1, column=3, padx=10, pady=10)
+
+    # if the warning limit is set to no, then disable the warning limit entry
+    def enable_and_disable_warning_limit_entry():
+        if warning_limit_var.get() == 0:
+            warning_limit_entry.config(state="disabled")
+        else:
+            warning_limit_entry.config(state="normal")
+        # enable the warning limit entry if the warning limit is set to yes
+
+    warning_limit_radio_button_yes.config(command=enable_and_disable_warning_limit_entry)
+    # add command to radio button
+    warning_limit_radio_button_no.config(command=enable_and_disable_warning_limit_entry)
+
+    load_warning_limit_from_db(warning_limit_entry, warning_limit_var)
+
+    # create a button to save the task
+    save_button = tk.Button(frame)
+    save_button.config(text="Save",
+                       command=lambda: save_settings(warning_limit_var, warning_limit_entry.get(), popup),
+                       bg="white")
+
+    # create a button to cancel the task
+    cancel_button = tk.Button(frame)
+
+    cancel_button.config(text="Cancel", command=popup.destroy, bg="white")
+    # show save and cancel buttons at the bottom right corner
+    save_button.grid(row=4, column=2, padx=10, pady=10)
+    cancel_button.grid(row=4, column=3, padx=10, pady=10)
+
+
+def load_warning_limit_from_db(warning_limit_entry, warning_limit_var):
+    # load settings values for warning limit and warning limit number from sqlite database
+    # create a connection to the database
+    connection = sqlite3.connect("config.db")
+    # create a cursor
+    cursor = connection.cursor()
+    # create a table if it doesn't exist
+    cursor.execute("CREATE TABLE IF NOT EXISTS settings (warning_limit INTEGER, warning_limit_number INTEGER)")
+    # select the values from the table
+    cursor.execute("SELECT * FROM settings")
+    # fetch the result
+    result = cursor.fetchone()
+    # if result is not None, set the values
+    if result is not None:
+        # set the values
+        warning_limit_var.set(result[0])
+        warning_limit_entry.insert(0, result[1])
+
+    # close the connection
+    connection.close()
+
+
 def add_menus():
     global menu_bar
     # add file menu to root
@@ -1819,6 +2113,8 @@ def add_menus():
     export_menu = tk.Menu(file_menu, tearoff=0)
     # add export menu to file menu
     file_menu.add_cascade(label="Export", menu=export_menu)
+    # add settings choice to file menu
+    file_menu.add_command(label="Settings", command=lambda: load_settings())
     # add export tasks with actual work to excel file
     export_menu.add_command(label="Time report in Excel", command=export_tasks_to_excel)
     # export tasks to sqlite database
@@ -1841,7 +2137,7 @@ def add_menus():
     menu_bar.add_cascade(label="Show tasks", menu=show_tasks_menu)
     # add show tasks menu to file menu
     # add show all tasks to show tasks menu
-    show_tasks_menu.add_command(label="Show all tasks", command=lambda: load_tasks(show_all_tasks=True))
+    show_tasks_menu.add_command(label="Show all tasks, including completed", command=lambda: load_tasks(show_all_tasks=True))
     # add show tasks finished today to show tasks menu
     show_tasks_menu.add_command(label="Show tasks finished today",
                                 command=lambda: load_tasks(show_tasks_finished_today=True))
@@ -1857,6 +2153,8 @@ def add_menus():
     # add file menu to load Note class
     file_menu.add_command(label="Add note", command=lambda: load_note_input())
     file_menu.add_command(label="Exit", command=root.destroy)
+    # add choice to move tasks to inbox
+    file_menu.add_command(label="Move tasks to inbox", command=lambda: move_tasks_to_inbox(load_tasks(draw=False)))
     # bind CTRL+F to load search tasks
     root.bind("<Control-f>", lambda event: search_tasks_popup())
     # bind CTRL+w to load note input
