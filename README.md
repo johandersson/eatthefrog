@@ -18,9 +18,11 @@ The tasks that you need to track, but that you haven't yet prioritized are put i
 You can add several tasks at the same time by pressing CTRL+i or just i (or use the File -> Add several tasks menu). I stands for Inbox.
 
 ## Why not use priority level that is already built in Outlook?
-Because you might have already prioritized tasks in Outlook with theese, and the thought behind the program is not to show all your tasks in the A-B-C list all the time, but the ones you think you are able to finish today. Therefore you need to prioritize your current tasks in the program with A-B-C, or in Outlook
+Because you might have already prioritized tasks in Outlook with theese, and the thought behind the program is not to show all your tasks in the A-B-C list all the time, but the ones you think you are able to finish today. Therefore you need to prioritize your current tasks in the program with A-B-C, or in Outlook.
 
 If you don't already have the categories A, B and C saved in Outlook, the program will create them the first time you run it. It will set them with the colors use in this method, green for A, yellow for B, and green for C tasks.
+
+The priority from Outlook, high, normal, low is used in the Inbox view to sort the tasks. So there you can choose which ones to then categorize with ABC which is supposed to be the tasks that you intend to do the current working day.
 
 ## Create calendar events based on a task and it's ABC-priority
 You can also create calendar events in outlook based on a task item, and that calendar event will use the priority color code of the task.
