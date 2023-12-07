@@ -5,6 +5,12 @@ The intention with the program and the method is that you should create a todo l
 
 The program is reads and writes the tasks in Outlook, so you don't need this program to work according to the A-B-C method, but the program is thought to simplify the process.
 
+# Features
+- Easily add several tasks at the same time
+- Search for tasks
+- Add notes and search notes
+- Task focus timer that logs time in the actual-work field in the Outlook task.
+
 # The inbox or backlog
 The tasks that you need to track, but that you haven't yet prioritized are put in the "Inbox", it's like a backlog of stuff that needs to be done someday but that you haven't yet cateogorized with A, B or C. If you choose "No category" when you create a new task with CTRL+n or use the + button, the tasks will be listed under the "Inbox" button (and if you open Outlook, these tasks have no category set).
 
