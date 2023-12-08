@@ -4,6 +4,7 @@ import locale
 import os
 import sqlite3
 import sys
+import time
 import traceback
 import webbrowser
 from pathlib import Path
@@ -17,7 +18,8 @@ import win32com.client
 from inbox import Inbox
 import tkcalendar
 from tkcalendar import DateEntry
-
+# import ET for xml
+import xml.etree.ElementTree as ET
 from tkrichtext.tkrichtext import TkRichtext
 
 # set some constants for the drawing
@@ -27,7 +29,7 @@ text_gap = 20  # gap between each task and text
 line_height = 30  # height of each line
 root = tk.Tk()
 no_date = datetime.datetime.strptime("01/01/4501", "%d/%m/%Y")
-root.current_filter = None
+current_filter = None
 # import Note class from note.py
 from note import Note
 
@@ -480,7 +482,7 @@ def search_tasks(subject, body, search_results_listbox, popup):
     for task_item in search_results:
         # if task is done draw a green check mark on the right side of the task text
         if task_item.Status == 2:
-            search_results_listbox.insert(tk.END, task_item.Subject + " ✓")
+            search_results_listbox.insert(tk.END, task_item.Subject + " âœ“")
         else:
             search_results_listbox.insert(tk.END, task_item.Subject)
 
@@ -519,7 +521,7 @@ def start_timer(timer_label, popup):
         # if time is up, show a happy frog that says "Time's up!"
         if time <= 1:
             popup_canvas = popup.winfo_children()[0]
-            popup_canvas.create_text(350, 200, text="😊", fill="green", font=("Arial", 100),
+            popup_canvas.create_text(350, 200, text="ðŸ˜Š", fill="green", font=("Arial", 100),
                                      anchor=tk.CENTER)
             time_up_text = popup_canvas.create_text(350, 300, text="Time's up!", fill="green", font=("Arial", 30),
                                                     anchor=tk.CENTER)
@@ -707,7 +709,7 @@ def delete_task(event, task):
     if messagebox.askyesno("Delete task?", "Are you sure you want to delete task with subject:\n'" + task.Subject + "'",
                            icon="warning"):
         task.Delete()
-        load_tasks()
+        load_tasks(show_only_this_category=current_filter)
 
 
 def change_priority_to_low(task):
@@ -720,10 +722,12 @@ def change_priority_to_normal(task):
     task.Save()
     load_tasks()
 
+
 def change_priority_to_high(task):
     task.Importance = 2
     task.Save()
     load_tasks()
+
 
 def change_category_popup(event, task):
     # create popup menu
@@ -739,8 +743,8 @@ def change_category_popup(event, task):
     categories_menu.add_command(label="C", command=lambda: change_category(task, "C"))
 
     popup_menu.add_cascade(label="Change category", menu=categories_menu)
-    #add choice to change priority
-    #add submenu to the above change priority
+    # add choice to change priority
+    # add submenu to the above change priority
     priority_menu = tk.Menu(popup_menu, tearoff=0)
     priority_menu.add_command(label="Low", command=lambda: change_priority_to_low(task))
     priority_menu.add_command(label="Normal", command=lambda: change_priority_to_normal(task))
@@ -750,7 +754,7 @@ def change_category_popup(event, task):
     popup_menu.add_command(label="Rename task", command=lambda: rename_task(event, task))
     # delete task
     popup_menu.add_command(label="Delete task", command=lambda: delete_task(event, task))
-    #move single task to inbox
+    # move single task to inbox
     popup_menu.add_command(label="Move to inbox", command=lambda: move_single_task_to_inbox(task))
 
     # add menu to start a timer on the task
@@ -785,7 +789,7 @@ def draw_tasks():
     loading_icon()
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
-        canvas.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
         # draw a text under the check mark saying "No tasks"
         canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
@@ -848,7 +852,7 @@ def draw_tasks():
 
         # if task is done draw a green check mark inside the box
         if task.Status == 2:
-            check_mark = canvas.create_text(x1, y1, text="✓", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
+            check_mark = canvas.create_text(x1, y1, text="âœ“", fill="light green", font=("Arial", 12), anchor=tk.CENTER)
             # bind check mark to mark_done function
             canvas.tag_bind(check_mark, "<Button-1>", lambda event, task=task: mark_done(event, task, check_mark))
 
@@ -978,7 +982,7 @@ def draw_tasks_with_icons(task, x3, y3):
     # if task has body text
     if task.Body != "":
         # draw a paperclip icon on the right side of the task text
-        paperclip = canvas.create_text(x3 + 400, y3, text="📎", fill="grey", font=("Arial", 12), anchor=tk.W)
+        paperclip = canvas.create_text(x3 + 400, y3, text="ðŸ“Ž", fill="grey", font=("Arial", 12), anchor=tk.W)
         # when double clicking the paperclip icon open the body popup
         canvas.tag_bind(paperclip, "<Double-Button-1>", lambda event, task=task: show_task_body(event, task))
 
@@ -997,7 +1001,7 @@ def draw_tasks_with_icons(task, x3, y3):
 
         # if task is complete draw a check mark on the right side of the due date text
         if task.Status == 2:
-            canvas.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
+            canvas.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
 
 
 def draw_task_completion_info(task, x3, y3):
@@ -1132,7 +1136,7 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
                show_only_this_category=None, draw=True, first_time_loading_tasks=False):
     # clear status bar
     status_bar.config(text="")
-    global tasks_by_category, task, category
+    global tasks_by_category, task, category, current_filter
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
     # get the namespace object
@@ -1166,7 +1170,7 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
                 # show message in status bar that only this category is shown
                 status_bar.config(text="Showing only " + category + " tasks")
                 tasks_by_category.append((task, category))
-                root.current_filter = show_only_this_category
+                current_filter = show_only_this_category
                 continue
 
         # if show all tasks is true
@@ -1198,15 +1202,45 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
 
     # sort the list by category in ascending order
     tasks_by_category.sort(key=lambda x: x[1])
-    #inside category sort by priority
+    # inside category sort by priority
 
     if show_only_this_category == "No category":
-        #sort tasks by priority in outlook, high priority first
+        # sort tasks by priority in outlook, high priority first
         tasks_by_category.sort(key=lambda x: x[0].Importance, reverse=True)
     # check how many tasks are in the list and show a warning if there are more than 20 tasks, and then ask the user if he wants to see the warning next time and save his anser in a config file
 
     if not first_time_loading_tasks:
-        check_number_of_tasks_and_warn(tasks_by_category)
+        if check_number_of_tasks_and_warn():
+            if len(tasks_by_category) > check_number_of_tasks_and_warn():
+                # read todays date from xml file
+                last_warning_date = read_xml_file("last_warning_date")
+                # if todays date is not the same as the date in the xml file
+                if last_warning_date != datetime.datetime.today().strftime("%d/%m/%Y"):
+                    # show warning
+                    # ask user if he wants to see warning more today
+                    show_warning = messagebox.askyesno("Warning", "You have " + str(
+                        len(tasks_by_category)) + " tasks, consider moving some to the inbox. \nDo you want to see this warning again today?",
+                                                       icon="warning")
+                    # if user wants to see warning next time
+                    if not show_warning:
+                        # write todays date to xml file
+                        # open xml file
+                        settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
+                        tree = ET.parse(settings_file)
+                        # get root element
+                        root = tree.getroot()
+                        # get tag from xml file
+                        tag = root.find("last_warning_date")
+                        # set tag text to todays date
+                        if tag is not None:
+                            tag.text = datetime.datetime.today().strftime("%d/%m/%Y")
+                        else:
+                            # create tag
+                            tag = ET.SubElement(root, "last_warning_date")
+                            # set tag text to todays date
+                            tag.text = datetime.datetime.today().strftime("%d/%m/%Y")
+                        # write to xml file
+                        tree.write(settings_file)
 
     if draw:
         draw_tasks()
@@ -1290,79 +1324,35 @@ def move_tasks_to_inbox_command(listbox, popup):
     # reload tasks
     load_tasks()
 
+
 def move_single_task_to_inbox(task):
     task.Categories = ""
     task.Save()
     load_tasks()
 
-def check_number_of_tasks_and_warn(tasks_by_category):
-    # read task limit from config.db
-    # open config.db
-    if os.path.exists("config.db"):
-        try:
-            conn = sqlite3.connect("config.db")
-        except:
-            # message box that config.db does not exist
-            stacktrace = traceback.format_exc()
 
-            # messagebox.showerror("Error", "config.db could not be opened" + "\n\n" + stacktrace)
-            # print stack trace
-            print(stacktrace)
-            # create config.db
-            conn = sqlite3.connect("config.db")
-            # create cursor
-            return
+def read_xml_file(tag):
+    settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
+    if os.path.exists(settings_file):
+        tree = ET.parse(settings_file)
+        # get root element
+        root = tree.getroot()
+        # get tag from xml file
+        tag = root.find(tag)
+        # return tag text
+        if tag is not None:
+            return tag.text
 
+    return None
+
+
+def check_number_of_tasks_and_warn():
+    warning_limit_number = read_xml_file("warning_limit_number")
+    if warning_limit_number is not None:
+        warning_limit_number = int(read_xml_file("warning_limit_number"))
     else:
-        # if config.db does not exist create it
-        conn = sqlite3.connect("config.db")
-        cursor = conn.cursor()
-        cursor.execute("CREATE TABLE IF NOT EXISTS settings (warning_limit INTEGER, warning_limit_number INTEGER)")
-        conn.commit()
-
-        try:
-            # create cursor
-            cursor = conn.cursor()
-            # create table if not exists
-            cursor.execute("CREATE TABLE IF NOT EXISTS settings (warning_limit INTEGER, warning_limit_number INTEGER)")
-            cursor.execute("CREATE TABLE IF NOT EXISTS move (todays_date TEXT)")
-            # check if warning limit is set to 1
-            cursor.execute("SELECT warning_limit FROM settings")
-            # fetch warning limit but prevent error if warning limit is not set
-            warning_limit = cursor.fetchone()[0]
-        except:
-            warning_limit = None
-        # prevent warning limit is not subscribtable error
-        if warning_limit and warning_limit == 1:
-            # get warning limit number
-            cursor.execute("SELECT warning_limit_number FROM settings")
-            warning_limit_number = cursor.fetchone()[0]
-            # if number of tasks is greater than warning limit number
-            if len(tasks_by_category) > warning_limit_number:
-                # get value from move table and compare it to todays date
-                cursor.execute("SELECT todays_date FROM move")
-                # fetch todays date but prevent error if todays date is not set
-                try:
-                    todays_date = cursor.fetchone()[0]
-                except:
-                    todays_date = None
-
-                # if todays date is not set or todays date is not equal to todays date
-                if todays_date is None or todays_date != datetime.datetime.today().strftime("%d/%m/%Y"):
-                    # show info dialog that there are more than warning limit number, and ask the user if he want's to move some tasks to the inbox
-                    if messagebox.askyesno("Warning", "There are more than " + str(
-                            warning_limit_number) + " tasks in your to do list.\nThat's a lot on your plate for today.\n\nDo you want to move some tasks to the inbox?"):
-                        # move tasks to inbox
-                        move_tasks_to_inbox(tasks_by_category)
-                        # clear move table
-
-                    cursor.execute("DELETE FROM move")
-                    # insert only todays date into move table
-                    cursor.execute("INSERT INTO move VALUES (?)", (datetime.datetime.today().strftime("%d/%m/%Y"),))
-                    # commit changes
-                    conn.commit()
-        # close connection
-        conn.close()
+        warning_limit_number = 0
+    return warning_limit_number
 
 
 load_tasks(first_time_loading_tasks=True)
@@ -1382,7 +1372,7 @@ def mark_done(event, task, check_mark=None):
     # if task is not already done
     if task.Status == 2:
         # draw a small green check mark a little bit bigger then the item, inside the item
-        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="✓", fill="light green",
+        canvas.create_text(canvas.bbox(item)[0] + 1, canvas.bbox(item)[1] + 6, text="âœ“", fill="light green",
                            font=("Arial", 18), anchor=tk.W)
     else:
         # delete the check mark from item
@@ -1434,8 +1424,8 @@ def save_task(subject, category, due_date, create_calendar_event, date_var=None,
     else:
         # save the task in the tasks folder
         task.Save()
-        if root.current_filter is not None:
-            load_tasks(show_only_this_category=root.current_filter)
+        if current_filter is not None:
+            load_tasks(show_only_this_category=current_filter)
         else:
             load_tasks()
         if popup:
@@ -1824,7 +1814,7 @@ def generate_html_file_to_print():
 
 def generate_dots_and_subjects(category, finished_date, html_file, subject, task):
     if task.Status == 2:
-        html_file.write("<span style='color:green; font-size:40px'>✓</span>")
+        html_file.write("<span style='color:green; font-size:40px'>âœ“</span>")
 
     html_file.write(generate_html_task_line(task))
     # if the task has a body print it in small grey nice formatted letters under the task subject with space before and after
@@ -1838,10 +1828,10 @@ def generate_html_task_line(task):
     # if task has no date
     if task.DateCompleted is None or task.DateCompleted != datetime.datetime.strptime("01/01/4501", "%d/%m/%Y"):
         # return task without date with color from category
-        return "<span style='color:" + color + "; font-size:40px'>●</span>" + " " + task.Subject + "<br>"
+        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + "<br>"
     else:
         # return task with date with color from category
-        return "<span style='color:" + color + "; font-size:40px'>●</span>" + " " + task.Subject + " - " + finished_date.strftime(
+        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + " - " + finished_date.strftime(
             "%d/%m/%Y") + "<br>"
 
 
@@ -1926,8 +1916,7 @@ def load_note_input():
 # open message input box to rename a task Subject
 def rename_task(event, task):
     # message box with input with input that has the current task subject as default value and input text that is as long as the current task subject
-    new_subject = simpledialog.askstring("Rename task", "New subject:", initialvalue=task.Subject,
-                                         width=len(task.Subject))
+    new_subject = simpledialog.askstring("Rename task", "New subject:", initialvalue=task.Subject)
     # if new subject is not empty
     if new_subject:
         # set task subject to new subject
@@ -1977,34 +1966,48 @@ init_categories()
 
 
 def save_settings(warning_limit, warning_limit_number, popup):
-    # save settings in sqlite database config.db in table settings
-    # create a connection to the database
-    connection = sqlite3.connect("config.db")
-    # create a cursor
-    cursor = connection.cursor()
-    # create a table if it doesn't exist
-    cursor.execute("CREATE TABLE IF NOT EXISTS settings (warning_limit INTEGER, warning_limit_number INTEGER)")
-    # insert the settings into the table
-    # check if warning limit is an IntVar
-    warning_limit = warning_limit.get()
-    # check if there is already any value in the settings table
-    value_exists = cursor.execute("SELECT * FROM settings")
-    # fetch the result
-    # if result is not None, update the values
-    if value_exists is not None:
-        # delete all values from the settings table
-        cursor.execute("DELETE FROM settings")
-        # insert the values
-        cursor.execute("INSERT INTO settings VALUES (?, ?)", (warning_limit, warning_limit_number))
+    # save settings to xml file
+    # if it does not exist create a settings xml file
+    settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
+    print(settings_file)
+    if not os.path.exists(settings_file):
+        # create a settings xml file
+        # create a root element
+        root = ET.Element("settings")
+        # create a tree
+        tree = ET.ElementTree(root)
+        # write the tree to the xml file
+        tree.write(settings_file)
     else:
-        # insert the values
-        cursor.execute("INSERT INTO settings VALUES (?, ?)", (warning_limit, warning_limit_number))
-    # commit the changes
-    connection.commit()
+        # update settings
+        # load settings from settings.xml file
+        tree = ET.parse(settings_file)
+        # get the root element
+        root = tree.getroot()
+        # get the warning limit element
 
-    # close the connection
-    connection.close()
+        # get the warning limit number element
+        warning_limit_element = root.find("warning_limit")
+        # get the warning limit number element
+        warning_limit_number_element = root.find("warning_limit_number")
+        if warning_limit.get() == 1 and warning_limit_element is not None:
+            warning_limit_element.text = "1"
+            warning_limit_number_element.text = warning_limit_number
+        elif warning_limit.get() == 0 and warning_limit_element is not None:
+            warning_limit_element.text = "0"
+            warning_limit_number_element.text = "0"
+        else:
+            # create warning limit element
+            warning_limit_element = ET.SubElement(root, "warning_limit")
+            # create warning limit number element
+            warning_limit_number_element = ET.SubElement(root, "warning_limit_number")
 
+    # write everything to the xml file
+    # pretty print
+    # print the file to the console
+    ET.dump(root)
+    # write the tree to the xml file
+    tree.write(settings_file, encoding="utf-8", xml_declaration=True, method="xml")
     # destroy popup
     popup.destroy()
 
@@ -2080,25 +2083,38 @@ def load_settings():
 
 
 def load_warning_limit_from_db(warning_limit_entry, warning_limit_var):
-    # load settings values for warning limit and warning limit number from sqlite database
-    # create a connection to the database
-    connection = sqlite3.connect("config.db")
-    # create a cursor
-    cursor = connection.cursor()
-    # create a table if it doesn't exist
-    cursor.execute("CREATE TABLE IF NOT EXISTS settings (warning_limit INTEGER, warning_limit_number INTEGER)")
-    # select the values from the table
-    cursor.execute("SELECT * FROM settings")
-    # fetch the result
-    result = cursor.fetchone()
-    # if result is not None, set the values
-    if result is not None:
-        # set the values
-        warning_limit_var.set(result[0])
-        warning_limit_entry.insert(0, result[1])
+    # load settings from settings.xml file
+    # if it does not exist create a settings xml file
+    settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
+    if not os.path.exists(settings_file):
+        # create a settings xml file
+        # create a root element
+        root = ET.Element("settings")
+        # create a tree
+        tree = ET.ElementTree(root)
+        # write the tree to the xml file
+        tree.write(settings_file)
 
-    # close the connection
-    connection.close()
+    # create a tree
+    tree = ET.parse(settings_file)
+    # get the root element
+    root = tree.getroot()
+    # get the warning limit element
+    warning_limit_element = root.find("warning_limit")
+    # get the warning limit number element
+    warning_limit_number_element = root.find("warning_limit_number")
+    # if the warning limit element is not none
+    if warning_limit_element is not None and warning_limit_element.text is not None:
+        # set the warning limit var to the value of the warning limit element
+        warning_limit_var.set(int(warning_limit_element.text))
+        # if the warning limit number element is not none
+        if warning_limit_number_element is not None and warning_limit_element.text == "1":
+            # set the text of the warning limit entry to the value of the warning limit number element
+            warning_limit_entry.insert(0, warning_limit_number_element.text)
+            # if the warning limit var is 0
+        else:
+            # disable the warning limit entry
+            warning_limit_entry.config(state="disabled")
 
 
 def add_menus():
@@ -2137,7 +2153,8 @@ def add_menus():
     menu_bar.add_cascade(label="Show tasks", menu=show_tasks_menu)
     # add show tasks menu to file menu
     # add show all tasks to show tasks menu
-    show_tasks_menu.add_command(label="Show all tasks, including completed", command=lambda: load_tasks(show_all_tasks=True))
+    show_tasks_menu.add_command(label="Show all tasks, including completed",
+                                command=lambda: load_tasks(show_all_tasks=True))
     # add show tasks finished today to show tasks menu
     show_tasks_menu.add_command(label="Show tasks finished today",
                                 command=lambda: load_tasks(show_tasks_finished_today=True))
