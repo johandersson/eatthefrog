@@ -10,6 +10,7 @@ The program is reads and writes the tasks in Outlook, so you don't need this pro
 - Search for tasks
 - Add notes and search notes
 - Task focus timer that logs time in the actual-work field in the Outlook task.
+- Set a task per day limit and get a warning if you have to much on your plate today
 
 # The inbox or backlog (i.e. pending tasks)
 The tasks that you need to track, but that you haven't yet prioritized are put in the "Inbox", it's like a backlog of stuff that needs to be done someday but that you haven't yet cateogorized with A, B or C. If you choose "No category" when you create a new task with CTRL+n or use the + button, the tasks will be listed under the "Inbox" button (and if you open Outlook, these tasks have no category set).
