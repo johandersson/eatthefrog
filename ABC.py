@@ -791,7 +791,14 @@ def draw_tasks():
         # draw a big light green check mark on the canvas
         canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
         # draw a text under the check mark saying "No tasks"
-        canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
+        if current_filter is None or current_filter == "":
+            canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
+        else:
+
+
+            canvas.create_text(350, 300, text="No tasks with ", fill="green", font=("Arial", 30), anchor=tk.CENTER)
+            #draw category as a rectangle under the text
+            canvas.create_rectangle(350, 300, 350 + 50, 300 + 50, fill=get_color_code_from_category(current_filter), outline=get_color_code_from_category(current_filter))
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
         canvas.create_text(350, 350, text="Press ctrl+n to create a new task", fill="green", font=("Arial", 15),
                            anchor=tk.CENTER)
@@ -1137,6 +1144,7 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
     # clear status bar
     status_bar.config(text="")
     global tasks_by_category, task, category, current_filter
+    current_filter = show_only_this_category
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
     # get the namespace object
@@ -1170,7 +1178,6 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
                 # show message in status bar that only this category is shown
                 status_bar.config(text="Showing only " + category + " tasks")
                 tasks_by_category.append((task, category))
-                current_filter = show_only_this_category
                 continue
 
         # if show all tasks is true
