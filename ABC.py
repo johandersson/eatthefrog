@@ -11,6 +11,10 @@ from pathlib import Path
 from tkinter import messagebox, filedialog, simpledialog, ttk
 import tkinter as tk
 import clr
+import win32api
+import win32con
+import win32print
+import win32ui
 
 clr.AddReference("System.Text.Encoding")
 import System
@@ -57,6 +61,19 @@ def create_filter_buttons():
     frame = tk.Frame(root)
     frame.config(bg="white")
     frame.pack(side=tk.TOP)
+    # create a label to display the date
+    date_label = tk.Label(frame)
+    # get the current date
+    today = datetime.datetime.today()
+    # format the date to 20 december 2020
+    today = today.strftime("%d %B %Y")
+    # set the label text to the date
+    date_label.config(text="Todo list " + today, bg="white")
+    # make the label to the left
+    date_label.pack(side=tk.LEFT)
+    #line break between date and buttons
+    line_break = tk.Label(frame)
+    line_break.config(text=" | ", bg="white")
     # + button to create a new task
     plus_button = tk.Button(frame)
     # place it on the left hand side
@@ -79,7 +96,8 @@ def create_filter_buttons():
     all_button = tk.Button(frame)
     all_button.config(text="A+B+C", bg="white", command=lambda: load_tasks())
     all_button.pack(side=tk.LEFT)
-    # create a No category button
+
+
 
     reload_button = tk.Button(frame)
     reload_button.config(text="Reload", bg="white", command=lambda: load_tasks())
@@ -97,7 +115,6 @@ canvas = tk.Canvas(root)
 # make the canvas fill the root window
 canvas.pack(fill=tk.BOTH, expand=True)
 # above canvas put a small button that loads the inbox
-
 
 # add status bar to root
 status_bar = tk.Label(root, text="Ready", bd=1, relief=tk.SUNKEN, anchor=tk.W)
@@ -717,6 +734,7 @@ def change_priority_to_low(task):
     task.Save()
     load_tasks()
 
+
 def change_priority_to_normal(task):
     task.Importance = 1
     task.Save()
@@ -787,6 +805,7 @@ def draw_tasks():
     canvas.delete("all")
     # display hour glass cursor while loading tasks
     loading_icon()
+
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
         canvas.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
@@ -795,10 +814,10 @@ def draw_tasks():
             canvas.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         else:
 
-
             canvas.create_text(350, 300, text="No tasks with ", fill="green", font=("Arial", 30), anchor=tk.CENTER)
-            #draw category as a rectangle under the text
-            canvas.create_rectangle(350, 300, 350 + 50, 300 + 50, fill=get_color_code_from_category(current_filter), outline=get_color_code_from_category(current_filter))
+            # draw category as a rectangle under the text
+            canvas.create_rectangle(350, 300, 350 + 50, 300 + 50, fill=get_color_code_from_category(current_filter),
+                                    outline=get_color_code_from_category(current_filter))
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
         canvas.create_text(350, 350, text="Press ctrl+n to create a new task", fill="green", font=("Arial", 15),
                            anchor=tk.CENTER)
@@ -882,6 +901,10 @@ def draw_tasks():
         # else hide the scrollbar
         else:
             canvas.config(scrollregion=(0, 0, 0, 0))
+
+    #date time in format 11 dec 2020
+
+
 
     # display normal cursor after loading tasks
     reset_loading_icon()
@@ -1139,7 +1162,7 @@ def import_tasks_from_sqlite():
     load_tasks()
 
 
-def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_tasks=False,
+def load_tasks(show_tasks_finished_today=False, show_all_tasks=False,
                show_only_this_category=None, draw=True, first_time_loading_tasks=False):
     # clear status bar
     status_bar.config(text="")
@@ -1187,25 +1210,19 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
             # add task to list
             tasks_by_category.append((task, category))
             continue
-        # if task is category A, B, or C
-        if show_projects:
-            if category == "A" or category == "B" or category == "C" or "Projects" in category and task.Status != 2:
+        if show_only_this_category is None:
+            if category == "A" or category == "B" or category == "C":
+                if show_tasks_finished_today:
+                    status_bar.config(text="Showing A, B, and C tasks finished today")
+                else:
+                    status_bar.config(text="Showing A, B, and C tasks")
                 # add task to list
                 tasks_by_category.append((task, category))
         else:
-            if show_only_this_category is None:
-                if category == "A" or category == "B" or category == "C":
-                    if show_tasks_finished_today:
-                        status_bar.config(text="Showing A, B, and C tasks finished today")
-                    else:
-                        status_bar.config(text="Showing A, B, and C tasks")
-                    # add task to list
-                    tasks_by_category.append((task, category))
-            else:
-                if show_only_this_category == "No category" and category != "A" and category != "B" and category != "C":
-                    status_bar.config(text="Showing tasks that are not prioritized with A-B-C")
-                    tasks_by_category.append((task, category))
-                # add task to list
+            if show_only_this_category == "No category" and category != "A" and category != "B" and category != "C":
+                status_bar.config(text="Showing tasks that are not prioritized with A-B-C")
+                tasks_by_category.append((task, category))
+            # add task to list
 
     # sort the list by category in ascending order
     tasks_by_category.sort(key=lambda x: x[1])
@@ -1216,17 +1233,19 @@ def load_tasks(show_projects=False, show_tasks_finished_today=False, show_all_ta
         tasks_by_category.sort(key=lambda x: x[0].Importance, reverse=True)
     # check how many tasks are in the list and show a warning if there are more than 20 tasks, and then ask the user if he wants to see the warning next time and save his anser in a config file
 
-    if not first_time_loading_tasks:
-        if check_number_of_tasks_and_warn():
-            if len(tasks_by_category) > check_number_of_tasks_and_warn():
+    if not first_time_loading_tasks and not show_all_tasks and not show_tasks_finished_today and not show_only_this_category:
+        task_limit = read_number_of_tasks_limit()
+        if task_limit > 0:
+            if len(tasks_by_category) > read_number_of_tasks_limit():
                 # read todays date from xml file
                 last_warning_date = read_xml_file("last_warning_date")
                 # if todays date is not the same as the date in the xml file
                 if last_warning_date != datetime.datetime.today().strftime("%d/%m/%Y"):
                     # show warning
                     # ask user if he wants to see warning more today
-                    show_warning = messagebox.askyesno("Warning", "You have " + str(
-                        len(tasks_by_category)) + " tasks, consider moving some to the inbox. \nDo you want to see this warning again today?",
+                    show_warning = messagebox.askyesno("Warning", "Your tasks per day limit is set to " + str(
+                        task_limit) + "\n\nYou have " + str(
+                        len(tasks_by_category)) + " tasks, consider moving some to the inbox to not get exhausted (Alt+M or file menu).\n\nDo you want to see this warning again today?",
                                                        icon="warning")
                     # if user wants to see warning next time
                     if not show_warning:
@@ -1353,7 +1372,7 @@ def read_xml_file(tag):
     return None
 
 
-def check_number_of_tasks_and_warn():
+def read_number_of_tasks_limit():
     warning_limit_number = read_xml_file("warning_limit_number")
     if warning_limit_number is not None:
         warning_limit_number = int(read_xml_file("warning_limit_number"))
@@ -1677,7 +1696,7 @@ def create_new_task_popup():
     popup.bind("<Return>", lambda event: save_task(subject_entry.get(), category_var.get(), due_date_var.get(), popup))
 
 
-# loop through the sorted list and draw the tasks on the canvas
+
 draw_tasks()
 
 # define a variable to keep track of how many times the dots have blinked in a minute
@@ -1687,6 +1706,8 @@ draw_tasks()
 root.bind("<Control-n>", lambda event: create_new_task_popup())
 # bind reload to ctrl+r
 root.bind("<Control-r>", lambda event: load_tasks())
+#bind ctrl+Â´m to move tasks to inbox
+root.bind("<Alt-m>", lambda event: move_tasks_to_inbox(tasks_by_category))
 
 
 # delete frog and text function
@@ -1735,6 +1756,7 @@ def generate_html_file():
     html_file.write("<style>body {font-family: 'Roboto', sans-serif;}</style>")
     # make that font the default font for the html file
     # loop through the tasks and write the html file
+
     for task, category in load_tasks(show_all_tasks=True, draw=False):
         # if task is completed
         # write the task subject and finished date
@@ -1763,6 +1785,7 @@ def generate_html_file():
     webbrowser.open(file_path)
 
 
+
 def generate_html_file_to_print():
     # while html file is being generated show a blinking loading text on root window
     # create a label to display the task subject
@@ -1788,6 +1811,9 @@ def generate_html_file_to_print():
     html_file.write("<style>body {font-family: 'Roboto', sans-serif;}</style>")
     # make that font the default font for the html file
     # loop through the tasks and write the html file
+    # write Todo list and date in 12 december 2020 format
+    html_file.write("<h1>Todo list</h1>")
+    html_file.write("<h2>" + datetime.datetime.today().strftime("%d %B %Y") + "</h2>")
 
     for task, category in load_tasks(draw=False):
         # if task is completed
@@ -1806,9 +1832,12 @@ def generate_html_file_to_print():
             generate_dots_and_subjects(category, finished_date, html_file, subject, task)
 
     # write the html file footer
+    #add print javascript button
+    #center button
+    html_file.write("<center>")
+    html_file.write("<button onclick='window.print()'>Print</button>")
+    html_file.write("</center>")
     html_file.write("</body></html>")
-    # remove blinking loading text
-    # reload canvas
     load_tasks()
     # close the html file
     html_file.close()
@@ -1835,7 +1864,7 @@ def generate_html_task_line(task):
     # if task has no date
     if task.DateCompleted is None or task.DateCompleted != datetime.datetime.strptime("01/01/4501", "%d/%m/%Y"):
         # return task without date with color from category
-        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + "<br>"
+        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + " (" + task.Categories + ")<br>"
     else:
         # return task with date with color from category
         return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + " - " + finished_date.strftime(
@@ -2114,6 +2143,7 @@ def load_warning_limit_from_db(warning_limit_entry, warning_limit_var):
     if warning_limit_element is not None and warning_limit_element.text is not None:
         # set the warning limit var to the value of the warning limit element
         warning_limit_var.set(int(warning_limit_element.text))
+
         # if the warning limit number element is not none
         if warning_limit_number_element is not None and warning_limit_element.text == "1":
             # set the text of the warning limit entry to the value of the warning limit number element
