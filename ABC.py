@@ -820,11 +820,11 @@ def draw_tasks(canvas_to_draw_on):
         # when double clicking the task text open the task in outlook
         canvas_to_draw_on.tag_bind(task_text, "<Double-Button-1>", lambda event, task=task: task.Display())
         # when right clicking the task text open a popup menu with an option to change the category of the task
-        canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: change_category_popup(task_text, event, task))
+        canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: change_category_popup(event, task))
         # when mouse wheel clicking the task text open a timer window
         canvas_to_draw_on.tag_bind(task_text, "<Button-2>", lambda event, task=task: open_timer_window(event, task))
         # when right clicking the task text mark it as bold
-        canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: change_task_canvas_text_to_bold(event, canvas_to_draw_on, task_text))
+        #canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: change_task_canvas_text_to_bold(event, canvas_to_draw_on, task_text))
 
 
         # if task is done draw a green check mark inside the box
