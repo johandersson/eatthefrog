@@ -77,7 +77,7 @@ class Inbox(tk.Toplevel): # Inherit from Toplevel instead of Tk
        
                 new_task.Save()
 
-    def save_tasks(self):
+    def save_tasks(self, event=None):
         self.create_task()
         # os.startfile("outlook")
         self.task_text.delete('1.0', END)
