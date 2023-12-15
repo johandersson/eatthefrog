@@ -37,6 +37,9 @@ current_filter = None
 # import Note class from note.py
 from note import Note
 
+tasks_by_category = []
+task = None
+category = None
 
 def close_window(event=None):
     # destroy the root window
@@ -56,9 +59,9 @@ today_tab = ttk.Frame(tab_control)
 tab_control.add(today_tab, text="Today")
 tab_control.pack(expand=1, fill="both")
 # on focus of tab Today, load tasks with category Today
-#load a+b+c tasks
+# load a+b+c tasks
 today_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
-
+#bind click on tab to load tasks
 # create separate tab for A
 a_tab = ttk.Frame(tab_control)
 tab_control.add(a_tab, text="A")
@@ -94,11 +97,10 @@ tab_control.pack(expand=1, fill="both")
 tasks_finished_today_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
 
 all_tasks_tab = ttk.Frame(tab_control)
-tab_control.add(all_tasks_tab, text="All tasks")
+tab_control.add(all_tasks_tab, text="All finished tasks")
 tab_control.pack(expand=1, fill="both")
 # on focus of tab All tasks, load tasks with category All tasks
 all_tasks_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
-
 
 today_canvas = tk.Canvas(today_tab)
 # make the canvas fill the root window
@@ -145,7 +147,6 @@ all_tasks_canvas.pack(fill=tk.BOTH, expand=True)
 # add canvas to root
 all_tasks_canvas.pack(fill=tk.BOTH, expand=True)
 
-
 # add a button to create a new note
 
 
@@ -156,6 +157,40 @@ status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 # add scrollbar to canvas
 scrollbar = tk.Scrollbar(inbox_canvas)
 scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+#add scrollbar to today canvas
+today_scrollbar = tk.Scrollbar(today_canvas)
+today_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+# add scrollbar to a canvas
+a_scrollbar = tk.Scrollbar(a_canvas)
+a_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+# add scrollbar to b canvas
+b_scrollbar = tk.Scrollbar(b_canvas)
+b_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+# add scrollbar to c canvas
+c_scrollbar = tk.Scrollbar(c_canvas)
+c_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+# add scrollbar to all tasks canvas
+all_tasks_scrollbar = tk.Scrollbar(all_tasks_canvas)
+all_tasks_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+prev_item = None  # Keep track of the previous item
+
+
+def highlight_text(event, canvas_x, task_text):
+    global prev_item  # Keep track of the previous item
+    # change font to underline
+    # set cursor to hand
+    canvas_x.itemconfig(task_text, fill="blue", font=("Arial", 12, "underline"))
+    if prev_item and prev_item != task_text:  # If there was a previous item and it is different from the current item
+        #ensure that the previous item is a text
+        if canvas_x.type(prev_item) == "text":
+            # Restore its color and font
+            canvas_x.itemconfig(prev_item, fill="black", font=("Arial", 12, "normal"))
+    prev_item = task_text  # Update the previous item
+
+
+
+
+
 
 
 def convert_seconds_to_string(seconds):
@@ -333,7 +368,7 @@ def close_popup_and_save_time_in_task(event, popup, task):
     root.focus_set()
 
     # update main window tasks
-    load_tasks()
+    load_tasks_in_correct_tab()
     # save task
     task.Save()
 
@@ -688,44 +723,58 @@ def change_priority_to_high(task):
     load_tasks_in_correct_tab()
 
 
-def change_category_popup(event, task):
+def action_menu_popup(event, task_to_change):
+    # highlight_text(event, canvas_x, task_text)
     # create popup menu
     popup_menu = tk.Menu(root, tearoff=0)
     # set title of popup men
     # add separator
+    #get subject of task and cut if it is longer than 30 characters
+    subject = task_to_change.Subject
+    if len(subject) > 30:
+        subject = subject[:30] + "..."
+
+    #add a first item in the popup that acts as a title with bold label
+    popup_menu.add_command(label=subject, font=("Arial", 9, "bold"))
+    #disable the first item so that it can't be clicked
+    popup_menu.entryconfig(0, state=tk.DISABLED)
+    #add a separator
+    popup_menu.add_separator()
 
     # add categories to popup menu as submenu
     categories_menu = tk.Menu(popup_menu, tearoff=0)
-    categories_menu.add_command(label="A", command=lambda: change_category(task, "A"))
-    categories_menu.add_command(label="B", command=lambda: change_category(task, "B"))
-    categories_menu.add_command(label="C", command=lambda: change_category(task, "C"))
+    categories_menu.add_command(label="A", command=lambda: change_category(task_to_change, "A"))
+    categories_menu.add_command(label="B", command=lambda: change_category(task_to_change, "B"))
+    categories_menu.add_command(label="C", command=lambda: change_category(task_to_change, "C"))
 
     popup_menu.add_cascade(label="Change category", menu=categories_menu)
     # add choice to change priority
     # add submenu to the above change priority
     priority_menu = tk.Menu(popup_menu, tearoff=0)
-    priority_menu.add_command(label="Low", command=lambda: change_priority_to_low(task))
-    priority_menu.add_command(label="Normal", command=lambda: change_priority_to_normal(task))
-    priority_menu.add_command(label="High", command=lambda: change_priority_to_high(task))
-    popup_menu.add_cascade(label="Change priority", menu=priority_menu)
-    # add option to rename task Subject
-    popup_menu.add_command(label="Rename task", command=lambda: rename_task(event, task))
-    # delete task
-    popup_menu.add_command(label="Delete task", command=lambda: delete_task(event, task))
-    # move single task to inbox
-    popup_menu.add_command(label="Move to inbox", command=lambda: move_single_task_to_inbox(task))
+    priority_menu.add_command(label="Low", command=lambda: change_priority_to_low(task_to_change))
+    priority_menu.add_command(label="Normal", command=lambda: change_priority_to_normal(task_to_change))
+    priority_menu.add_command(label="High", command=lambda: change_priority_to_high(task_to_change))
 
+    # add option to rename task Subject
+    popup_menu.add_command(label="Rename task", command=lambda: rename_task(event, task_to_change))
+    # delete task
+    popup_menu.add_command(label="Delete task", command=lambda: delete_task(event, task_to_change))
+    # move single task to inbox
+    if task_to_change.Categories !="":
+        popup_menu.add_command(label="Move to inbox", command=lambda: move_single_task_to_inbox(task_to_change))
+    else:
+        popup_menu.add_cascade(label="Change priority", menu=priority_menu)
     # add menu to start a timer on the task
-    popup_menu.add_command(label="Start timer", command=lambda: open_timer_window(event, task))
+    popup_menu.add_command(label="Start timer", command=lambda: open_timer_window(event, task_to_change))
     # add menu to show task body
-    popup_menu.add_command(label="Show task body", command=lambda: show_task_body(event, task))
+    popup_menu.add_command(label="Show task body", command=lambda: show_task_body(event, task_to_change))
 
     # add menu to create calendar event from task
     popup_menu.add_command(label="Create calendar event based on this task",
-                           command=lambda: create_calendar_event_from_task(task))
+                           command=lambda: create_calendar_event_from_task(task_to_change))
 
     # add menu to open task in outlook
-    popup_menu.add_command(label="Open task in Outlook", command=lambda: task.Display())
+    popup_menu.add_command(label="Open task in Outlook", command=lambda: task_to_change.Display())
 
     # display popup menu
     popup_menu.tk_popup(event.x_root, event.y_root)
@@ -739,19 +788,10 @@ def change_category(task, category):
     # update tasks
     load_tasks_in_correct_tab()
 
-def change_task_canvas_text_to_bold(event, canvas, task_text):
-    #find text on canvas
-    text = canvas.find_withtag(task_text)
-    #turn text bold
-    canvas.itemconfig(text, font=("Arial", 12, "bold"))
-
-
 
 def draw_tasks(canvas_to_draw_on):
-    # clear
-    canvas_to_draw_on.delete("all")
-    # display hour glass cursor while loading tasks
     loading_icon()
+    canvas_to_draw_on.delete("all")
 
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
@@ -761,7 +801,8 @@ def draw_tasks(canvas_to_draw_on):
             canvas_to_draw_on.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         else:
 
-            canvas_to_draw_on.create_text(350, 300, text="No " + current_filter + " tasks", fill="green", font=("Arial", 30),
+            canvas_to_draw_on.create_text(350, 300, text="No " + current_filter + " tasks", fill="green",
+                                          font=("Arial", 30),
                                           anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
         canvas_to_draw_on.create_text(350, 350, text="Press ctrl+n to create a new task", fill="green",
@@ -806,6 +847,9 @@ def draw_tasks(canvas_to_draw_on):
                                                        fill=color,
                                                        outline="")
 
+        #set checkbox cursor to hand but only when hovering over the checkbox
+        canvas_to_draw_on.tag_bind(check_box, "<Enter>", lambda event: canvas_to_draw_on.config(cursor="hand2"))
+        canvas_to_draw_on.tag_bind(check_box, "<Leave>", lambda event: canvas_to_draw_on.config(cursor="arrow"))
         # when clicking the checkbox draw a check mark inside it
         canvas_to_draw_on.tag_bind(check_box, "<Button-1>", lambda event, task=task: mark_done(event, task, check_box))
 
@@ -813,19 +857,22 @@ def draw_tasks(canvas_to_draw_on):
         canvas_to_draw_on.tag_bind(check_box, "<Button-1>", lambda event, task=task: mark_done(event, task))
         # when double clicking the dot open the task in outlook
         canvas_to_draw_on.tag_bind(check_box, "<Double-Button-1>", lambda event, task=task: task.Display())
-        # when mouse wheel clicking the dot open a timer window
-        canvas_to_draw_on.tag_bind(check_box, "<Button-2>", lambda event, task=task: open_timer_window(event, task))
         # draw a text with the task information on the canvas with black color and Arial font size 14
         task_text = canvas_to_draw_on.create_text(x3, y3, text=task_info, fill="black", font=("Arial", 12), anchor=tk.W)
-        # when double clicking the task text open the task in outlook
-        canvas_to_draw_on.tag_bind(task_text, "<Double-Button-1>", lambda event, task=task: task.Display())
-        # when right clicking the task text open a popup menu with an option to change the category of the task
-        canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: change_category_popup(event, task))
+
+
+       # when hovering over task text, call highlight_text function with canvas and task_text as arguments
+        #canvas_to_draw_on.tag_bind(task_text, "<Enter>",
+                                   #lambda event, canvas=canvas_to_draw_on, task_text=task_text: highlight_text(event,
+                                                                                                               #canvas,
+                                                                                                               #task_text))
+
+        # when left clicking the task text open a popup menu
+        canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: action_menu_popup(event, task))
+
         # when mouse wheel clicking the task text open a timer window
         canvas_to_draw_on.tag_bind(task_text, "<Button-2>", lambda event, task=task: open_timer_window(event, task))
-        # when right clicking the task text mark it as bold
-        #canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: change_task_canvas_text_to_bold(event, canvas_to_draw_on, task_text))
-
+        # when mouse over the text call the highlight_task function
 
         # if task is done draw a green check mark inside the box
         if task.Status == 2:
@@ -834,7 +881,6 @@ def draw_tasks(canvas_to_draw_on):
             # bind check mark to mark_done function
             canvas_to_draw_on.tag_bind(check_mark, "<Button-1>",
                                        lambda event, task=task: mark_done(event, task, check_mark))
-
 
         # if task is drawn out of the canvas
         if y3 > 800:
@@ -978,8 +1024,9 @@ def draw_tasks_with_icons(canvas_to_draw_on, task, x3, y3):
         if task.Status == 2:
             canvas_to_draw_on.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
 
+
 def load_tasks(canvas_to_draw_on, show_tasks_finished_today=False, show_all_tasks=False,
-               show_only_this_category=None, draw=True, first_time_loading_tasks=False):
+               show_only_this_category=None, draw=True, first_time_loading_tasks=False, show_all_finished_tasks=False):
     # clear status bar
     status_bar.config(text="")
     global tasks_by_category, task, category, current_filter
@@ -1001,7 +1048,13 @@ def load_tasks(canvas_to_draw_on, show_tasks_finished_today=False, show_all_task
             "[Complete] = True AND [DateCompleted] >= '" + today + "'")
         # show message in status bar that only tasks finished today are shown
     # if task are not finished today but not show all tasks
-    elif not show_all_tasks:
+    if show_all_finished_tasks:
+        # restrict tasks to tasks finished today
+        tasks = tasks.Restrict(
+            "[Complete] = True")
+        # show message in status bar that only tasks finished today are shown
+
+    elif not show_all_tasks and not show_tasks_finished_today:
         # filter tasks by not completed tasks
         tasks = tasks.Restrict("[Complete] = False")
 
@@ -1089,6 +1142,20 @@ def load_tasks(canvas_to_draw_on, show_tasks_finished_today=False, show_all_task
         draw_tasks(canvas_to_draw_on)
 
     return tasks_by_category
+
+#function to change cursor to a hand when any task is hovered over
+def change_cursor_to_hand(event):
+    #get type of widget that the mouse is over
+    widget = event.widget.find_withtag(tk.CURRENT)
+    #if the widget is a task text
+    if widget and widget[0] == 2:
+        #change cursor to hand
+        root.config(cursor="hand2")
+    else:
+        root.config(cursor="")
+
+
+#bind hover over task_text to change_cursor_to_hand function
 
 
 def get_canvas_to_draw_on():
@@ -1248,7 +1315,8 @@ def mark_done(event, task, check_mark=None):
         canvas_to_draw_on.delete(check_mark)
 
     task.Save()
-    load_tasks_in_correct_tab()
+    #call load_tasks_in_correct_tab function after 300 milliseconds
+    canvas_to_draw_on.after(3000, load_tasks_in_correct_tab)
 
 
 def save_task(subject, category, due_date, create_calendar_event, date_var=None, popup=None):
@@ -1310,7 +1378,8 @@ def load_tasks_in_correct_tab():
     elif chosen_tab == 5:
         load_tasks(canvas_to_draw_on=tasks_finished_today_canvas, show_tasks_finished_today=True)
     else:
-        load_tasks(canvas_to_draw_on=all_tasks_canvas, show_all_tasks=True)
+        load_tasks(canvas_to_draw_on=all_tasks_canvas, show_all_finished_tasks=True)
+
 
 def create_new_calendar_event_based_on_task(category, due_date, namespace, subject):
     # create a new calendar event
@@ -1451,7 +1520,8 @@ def create_new_task_popup(default_category="No category"):
 
     # create a radio button for category
     category_radio_button_no = tk.Radiobutton(frame)
-    category_radio_button_no.config(text="Inbox (tasks not for today)", variable=category_var, value="No category", bg="white")
+    category_radio_button_no.config(text="Inbox (tasks not for today)", variable=category_var, value="No category",
+                                    bg="white")
     category_radio_button_no.grid(row=2, column=1, padx=10, pady=10)
 
     # create a radio button for category
@@ -1555,11 +1625,12 @@ def switch_to_tab(tab_index):
     tab_control.select(tab_index)
     load_tasks_in_correct_tab()
 
+
 # bind create new task to ctrl+n
 root.bind("<Control-n>", lambda event: create_new_task_popup(current_filter))
 # bind reload to ctrl+r
 canvas = get_canvas_to_draw_on()
-root.bind("<Control-r>", lambda event: load_tasks(canvas_to_draw_on=canvas))
+root.bind("<Control-r>", lambda event: load_tasks_in_correct_tab())
 # bind ctrl+Â´m to move tasks to inbox
 root.bind("<Alt-m>", lambda event: move_tasks_to_inbox(tasks_by_category))
 
@@ -1621,7 +1692,6 @@ def generate_html_file_to_print():
     html_file.write("<button onclick='window.print()'>Print</button>")
     html_file.write("</center>")
     html_file.write("</body></html>")
-    #load_tasks()
     # close the html file
     html_file.close()
     # send html_file to printer, ask user if he wants to print it
@@ -1951,16 +2021,14 @@ def add_menus():
     export_menu.add_command(label="Time report in Excel", command=export_tasks_to_excel)
     # export tasks to sqlite database
 
-
     # add separator
     file_menu.add_separator()
     # add exit to file menu
 
-
-
     # add file menu to load Inbox class
     file_menu.add_command(label="Add several tasks", command=lambda: load_inbox())
-    file_menu.add_command(label="Move tasks to inbox", command=lambda: move_tasks_to_inbox(load_tasks(get_canvas_to_draw_on(), draw=False)))
+    file_menu.add_command(label="Move tasks to inbox",
+                          command=lambda: move_tasks_to_inbox(load_tasks(get_canvas_to_draw_on(), draw=False)))
     file_menu.add_command(label="Exit", command=root.destroy)
     # add choice to move tasks to inbox
     # bind CTRL+F to load search tasks
@@ -1972,13 +2040,13 @@ def add_menus():
     search_menu.add_command(label="Search tasks", command=lambda: search_tasks_popup())
     # add command to search for notes
     # add help menu
-    #print menu
+    # print menu
     print_menu = tk.Menu(menu_bar, tearoff=0)
     # add print menu to menu bar
     menu_bar.add_cascade(label="Print", menu=print_menu)
-    #Add print option to print menu
-    print_menu.add_command(label="Create Today todo list as html for printing", command=lambda: generate_html_file_to_print())
-
+    # Add print option to print menu
+    print_menu.add_command(label="Create Today todo list as html for printing",
+                           command=lambda: generate_html_file_to_print())
 
     help_menu = tk.Menu(menu_bar, tearoff=0)
     # add help menu to menu bar
