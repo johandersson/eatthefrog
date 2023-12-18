@@ -8,7 +8,6 @@ The program is reads and writes the tasks in Outlook, so you don't need this pro
 # Features
 - Easily add several tasks at the same time. This is useful for when you use the "Inbox" in the program to quickly add tasks to your pending tasks.
 - Search for tasks
-- Add notes and search notes
 - Task focus timer that logs time in the actual-work field in the Outlook task.
 - Set a task per day limit and get a warning if you have to much on your plate today
 
