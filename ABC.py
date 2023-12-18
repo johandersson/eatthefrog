@@ -1109,33 +1109,36 @@ def load_tasks(canvas_to_draw_on, show_tasks_finished_today=False, show_all_task
                 # read todays date from xml file
                 last_warning_date = read_xml_file("last_warning_date")
                 # if todays date is not the same as the date in the xml file
-                if last_warning_date != datetime.datetime.today().strftime("%d/%m/%Y"):
-                    # show warning
-                    # ask user if he wants to see warning more today
-                    show_warning = messagebox.askyesno("Warning", "Your tasks per day limit is set to " + str(
-                        task_limit) + "\n\nYou have " + str(
-                        len(tasks_by_category)) + " tasks, consider moving some to the inbox to not get exhausted (Alt+M or file menu).\n\nDo you want to see this warning again today?",
-                                                       icon="warning")
-                    # if user wants to see warning next time
-                    if not show_warning:
-                        # write todays date to xml file
-                        # open xml file
-                        settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
-                        tree = ET.parse(settings_file)
-                        # get root element
-                        root = tree.getroot()
-                        # get tag from xml file
-                        tag = root.find("last_warning_date")
-                        # set tag text to todays date
-                        if tag is not None:
-                            tag.text = datetime.datetime.today().strftime("%d/%m/%Y")
-                        else:
-                            # create tag
-                            tag = ET.SubElement(root, "last_warning_date")
+                #check if the selected tab is the today tab
+                chosen_tab = tab_control.index(tab_control.select())
+                if chosen_tab == 0:
+                    if last_warning_date != datetime.datetime.today().strftime("%d/%m/%Y"):
+                        # show warning
+                        # ask user if he wants to see warning more today
+                        show_warning = messagebox.askyesno("Warning", "Your tasks per day limit is set to " + str(
+                            task_limit) + "\n\nYou have " + str(
+                            len(tasks_by_category)) + " tasks, consider moving some to the inbox to not get exhausted (Alt+M or file menu).\n\nDo you want to see this warning again today?",
+                                                           icon="warning")
+                        # if user wants to see warning next time
+                        if not show_warning:
+                            # write todays date to xml file
+                            # open xml file
+                            settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
+                            tree = ET.parse(settings_file)
+                            # get root element
+                            root = tree.getroot()
+                            # get tag from xml file
+                            tag = root.find("last_warning_date")
                             # set tag text to todays date
-                            tag.text = datetime.datetime.today().strftime("%d/%m/%Y")
-                        # write to xml file
-                        tree.write(settings_file)
+                            if tag is not None:
+                                tag.text = datetime.datetime.today().strftime("%d/%m/%Y")
+                            else:
+                                # create tag
+                                tag = ET.SubElement(root, "last_warning_date")
+                                # set tag text to todays date
+                                tag.text = datetime.datetime.today().strftime("%d/%m/%Y")
+                            # write to xml file
+                            tree.write(settings_file)
 
     if draw:
         canvas_to_draw_on = get_canvas_to_draw_on()
