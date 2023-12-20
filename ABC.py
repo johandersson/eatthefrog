@@ -81,11 +81,10 @@ tab_control.pack(expand=1, fill="both")
 # on focus of tab Tasks finished today, load tasks with category Tasks finished today
 tasks_finished_today_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
 
-all_tasks_tab = ttk.Frame(tab_control)
-tab_control.add(all_tasks_tab, text="All finished tasks")
+
+
 tab_control.pack(expand=1, fill="both")
-# on focus of tab All tasks, load tasks with category All tasks
-all_tasks_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
+
 #add a dropdown list to select category
 # create a variable to store the selected category
 selected_category = tk.StringVar()
@@ -181,13 +180,6 @@ tasks_finished_today_canvas.pack(fill=tk.BOTH, expand=True)
 # add canvas to root
 tasks_finished_today_canvas.pack(fill=tk.BOTH, expand=True)
 
-all_tasks_canvas = tk.Canvas(all_tasks_tab)
-# make the canvas fill the root window
-all_tasks_canvas.pack(fill=tk.BOTH, expand=True)
-# add canvas to root
-all_tasks_canvas.pack(fill=tk.BOTH, expand=True)
-
-# add a button to create a new note
 
 
 # add status bar to root
@@ -201,8 +193,7 @@ scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 today_scrollbar = tk.Scrollbar(today_canvas)
 today_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 # add scrollbar to a canvas
-all_tasks_scrollbar = tk.Scrollbar(all_tasks_canvas)
-all_tasks_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
 prev_item = None  # Keep track of the previous item
 
 
@@ -1199,8 +1190,6 @@ def get_canvas_to_draw_on():
         canvas_to_draw_on = inbox_canvas
     elif chosen_tab == 2:
         canvas_to_draw_on = tasks_finished_today_canvas
-    elif chosen_tab == 3:
-        canvas_to_draw_on = all_tasks_canvas
     return canvas_to_draw_on
 
 
@@ -1403,13 +1392,7 @@ def load_tasks_in_correct_tab():
     elif chosen_tab == 2:
         load_tasks(canvas_to_draw_on=tasks_finished_today_canvas, show_tasks_finished_today=True)
     else:
-        #ask user if he wants to show all tasks, if not do not load
-        question = messagebox.askyesno("Show all tasks", "Do you want to show all tasks?")
-        if question:
-            load_tasks(canvas_to_draw_on=all_tasks_canvas, show_all_tasks=True)
-        else:
-            #go back to today tab
-            tab_control.select(0)
+        pass
 
 
 def create_new_calendar_event_based_on_task(category, due_date, namespace, subject):
