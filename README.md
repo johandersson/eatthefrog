@@ -11,8 +11,11 @@ The program is reads and writes the tasks in Outlook, so you don't need this pro
 - Task focus timer that logs time in the actual-work field in the Outlook task.
 - Set a task per day limit and get a warning if you have to much on your plate today
 
-# The inbox or backlog (i.e. pending tasks)
-The tasks that you need to track, but that you haven't yet prioritized are put in the "Inbox", it's like a backlog of stuff that needs to be done someday but that you haven't yet cateogorized with A, B or C. If you choose "No category" when you create a new task with CTRL+n or use the + button, the tasks will be listed under the "Inbox" button (and if you open Outlook, these tasks have no category set).
+# To do view (Inbox)
+The tasks that you need to track, but that you haven't yet prioritized are put in the To do view, it's like a backlog of stuff that needs to be done someday but that you haven't yet cateogorized with A, B or C. Add tasks here by entering some text in the input box above the tasks.
+
+# Done today view
+In this view you can see tasks that you have marked done today. If you want to view tasks that where marked done in the past, you can go to Search.
 
 ## Add several tasks
 You can add several tasks at the same time by pressing CTRL+i or just i (or use the File -> Add several tasks menu). I stands for Inbox.
@@ -27,7 +30,8 @@ The priority from Outlook, high, normal, low is used in the Inbox view to sort t
 ## Create calendar events based on a task and it's ABC-priority
 You can also create calendar events in outlook based on a task item, and that calendar event will use the priority color code of the task.
 
-You can search tasks and also add outlook notes.
+## Search tasks
+You can search for tasks, both completed and not completed.
 
 ## Requirements
 Assumes you have Microsoft Outlook installed on Windows. (And excel if you want to export time reports).
