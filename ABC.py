@@ -1,30 +1,13 @@
 # import datetime with today
 import datetime
-import locale
 import os
-import sqlite3
-import sys
-import time
-import traceback
-import webbrowser
-from pathlib import Path
 from tkinter import messagebox, filedialog, simpledialog, ttk
 import tkinter as tk
-import clr
-import win32api
-import win32con
-import win32print
-import win32ui
-
-clr.AddReference("System.Text.Encoding")
-import System
 import win32com.client
 from inbox import Inbox
-import tkcalendar
 from tkcalendar import DateEntry
-# import ET for xml
 import xml.etree.ElementTree as ET
-from tkrichtext.tkrichtext import TkRichtext
+
 
 # set some constants for the drawing
 dot_radius = 8  # radius of each dot
@@ -67,41 +50,25 @@ today_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
 
 
 inbox_tab = ttk.Frame(tab_control)
-#when clicking inbox_tab focus on inbox input field
+# when clicking inbox_tab focus on inbox input field
 inbox_tab.bind("<Button-1>", lambda event: capture_text.focus_set())
-tab_control.add(inbox_tab, text="Inbox")
+tab_control.add(inbox_tab, text="To do")
 tab_control.pack(expand=1, fill="both")
 # on focus of tab Inbox, load tasks with category Inbox
 inbox_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
 # separate tag for inbox Note
 
 tasks_finished_today_tab = ttk.Frame(tab_control)
-tab_control.add(tasks_finished_today_tab, text="Tasks finished today")
+tab_control.add(tasks_finished_today_tab, text="Done today")
 tab_control.pack(expand=1, fill="both")
 # on focus of tab Tasks finished today, load tasks with category Tasks finished today
 tasks_finished_today_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
 
-
-
 tab_control.pack(expand=1, fill="both")
-
-#add a dropdown list to select category
-# create a variable to store the selected category
-selected_category = tk.StringVar()
-# create a dropdown list
-category_dropdown = ttk.Combobox(today_tab, textvariable=selected_category)
-# add categories to dropdown list
-#add label before dropdown list
-category_label = tk.Label(today_tab)
-category_label.config(text="Category:", bg="white")
-category_label.pack(fill=tk.X)
-category_dropdown["values"] = ["All", "A", "B", "C"]
-# set default value to All
-category_dropdown.current(0)
-category_dropdown.pack()
-#bind category to load tasks with that category
-category_dropdown.bind("<<ComboboxSelected>>", lambda event: load_tasks_in_correct_tab())
 today_canvas = tk.Canvas(today_tab)
+# add a button below the canvas in a frame to create a new task
+# create a frame to hold the widgets
+
 
 
 def create_new_task(task_subject):
@@ -122,6 +89,7 @@ def create_new_task(task_subject):
     # set task start date to today
     return new_task
 
+
 def create_new_task_from_entry(event, task_subject):
     # if task subject is not empty
     if task_subject != "":
@@ -134,12 +102,14 @@ def create_new_task_from_entry(event, task_subject):
         # delete text from capture text
         capture_text.delete(0, tk.END)
 
+
 def add_inbox_input_field():
     global capture_text
     # add a textfield under the plus button that also fills x
-    #add text label above text field
+    # add text label above text field
     capture_text_label = tk.Label(inbox_tab)
-    capture_text_label.config(text="Write your thoughts and press enter to add to inbox:", bg="white")
+    capture_text_label.config(
+        text="Write your thoughts and press enter to add to list of tasks for categorizing later:", bg="white")
     capture_text_label.pack(fill=tk.X)
     capture_text = tk.Entry(inbox_tab)
     capture_text.pack(fill=tk.X)
@@ -154,12 +124,8 @@ def add_inbox_input_field():
 
     capture_text.bind("<Return>", lambda event: create_new_task_from_entry(event, capture_text.get()))
 
+
 add_inbox_input_field()
-
-
-
-
-
 
 # make the canvas fill the root window
 today_canvas.pack(fill=tk.BOTH, expand=True)
@@ -179,8 +145,6 @@ tasks_finished_today_canvas = tk.Canvas(tasks_finished_today_tab)
 tasks_finished_today_canvas.pack(fill=tk.BOTH, expand=True)
 # add canvas to root
 tasks_finished_today_canvas.pack(fill=tk.BOTH, expand=True)
-
-
 
 # add status bar to root
 status_bar = tk.Label(root, text="Ready", bd=1, relief=tk.SUNKEN, anchor=tk.W)
@@ -432,10 +396,17 @@ def search_tasks_popup():
     search_button.grid(row=2, column=0, padx=10, pady=10)
 
     # list box to display search results
+    # add label over listbox that says: "Search results, double click to open task in Outlook"
+
     search_results_listbox = tk.Listbox(frame, width=50, height=10)
     search_results_listbox.grid(row=3, column=0, padx=10, pady=10)
     # make search results listbox nice font
     search_results_listbox.config(font=("Tahoma", 10))
+
+    # add search results label under listbox
+    search_results_label = tk.Label(frame)
+    search_results_label.config(text="", bg="white")
+    search_results_label.grid(row=4, column=0, padx=10, pady=10)
 
     # when pressing enter in subject entry search for tasks
     subject_entry.bind("<Return>",
@@ -475,18 +446,37 @@ def search_tasks(subject, body, search_results_listbox, popup):
     # get all the tasks in the folder
     tasks = tasks_folder.Items
     search_results = []
-    # loop through all the tasks and check their subject or body
-    for task_item in tasks:
-        # get the category of the task
-        # if task subject contains subject
-        # is subject is not empty and in task subject, ignore case
-        if subject != "" and subject.casefold() in task_item.Subject.casefold():
-            # add task to list
+    if subject == "" and body == "":
+        # ask if the user wants to search for all tasks the choices "All finished tasks" and "All tasks" or "Cancel"
+        search_all_tasks = messagebox.askyesnocancel("Search all tasks?",
+                                                     "Do you want to search for all tasks?\n\nClick 'Yes' to search for all tasks.\nClick 'No' to search for all finished tasks.\nClick 'Cancel' to cancel.")
+        if search_all_tasks is None:
+            # close popup
+            popup.destroy()
+            # return
+            return
+        elif search_all_tasks:
+            # search for all tasks
+            tasks = tasks_folder.Items
+        else:
+            # search for all finished tasks
+            tasks = tasks_folder.Items.Restrict("[Status] = 2")
+
+        for task_item in tasks:
             search_results.append(task_item)
-        # is body is not empty and in task body, ignore case
-        if body != "" and body.casefold() in task_item.Body.casefold():
-            # add task to list
-            search_results.append(task_item)
+
+    else:
+        for task_item in tasks:
+            # get the category of the task
+            # if task subject contains subject
+            # is subject is not empty and in task subject, ignore case
+            if subject != "" and subject.casefold() in task_item.Subject.casefold():
+                # add task to list
+                search_results.append(task_item)
+            # is body is not empty and in task body, ignore case
+            if body != "" and body.casefold() in task_item.Body.casefold():
+                # add task to list
+                search_results.append(task_item)
 
     # sort the list by category in ascending order
     # update search results listbox
@@ -502,6 +492,13 @@ def search_tasks(subject, body, search_results_listbox, popup):
     # if no results found display message
     if len(search_results) == 0:
         search_results_listbox.insert(tk.END, "No results found")
+        reset_loading_icon(popup)
+        return None
+
+    # display how many result in search results label, find label by searching for it in frame
+    search_results_label = popup.winfo_children()[0].winfo_children()[6]
+    search_results_label.config(
+        text="Results: " + str(len(search_results)) + " tasks. Double click to open task in Outlook.")
 
     reset_loading_icon(popup)
     return search_results
@@ -548,94 +545,6 @@ def start_timer(timer_label, popup):
     update_timer()
 
 
-def save_body(body_text, task, popup):
-    # get body text from text widget
-    body = body_text.rt.Rtf
-    # set task body to body text
-    task.Body = body
-    # save task
-    task.Save()
-    # destroy popup
-    popup.destroy()
-
-
-def turn_text_bold(rtf):
-    # get selected text
-    selected_text = rtf.SelectedText
-    # if selected text is not empty
-    if selected_text != "":
-        # if selected text is bold
-        print(rtf.SelectionFont)
-        # set selected text to bold
-        # if already bold
-        if not rtf.SelectionFont.Bold:
-            rtf.SelectionFont = System.Drawing.Font(rtf.SelectionFont, System.Drawing.FontStyle.Bold)
-        else:
-            rtf.SelectionFont = System.Drawing.Font(rtf.SelectionFont, System.Drawing.FontStyle.Regular)
-
-
-def turn_text_italic(rtf):
-    # get selected text
-    selected_text = rtf.SelectedText
-    # if selected text is not empty
-    if selected_text != "":
-        # if selected text is bold
-        print(rtf.SelectionFont)
-        # set selected text to bold
-        # if already bold
-        if not rtf.SelectionFont.Italic:
-            rtf.SelectionFont = System.Drawing.Font(rtf.SelectionFont, System.Drawing.FontStyle.Italic)
-        else:
-            rtf.SelectionFont = System.Drawing.Font(rtf.SelectionFont, System.Drawing.FontStyle.Regular)
-
-
-def show_task_body(event, task):
-    # create a popup window
-    popup = tk.Toplevel(root)
-    popup.title("Task body")
-    popup.config(bg="white")
-    popup.geometry("600x600")
-
-    # add frame with TkRichText and save button
-    frame = tk.Frame(popup)
-    frame.config(bg="white")
-    frame.pack(fill=tk.BOTH, expand=True)
-
-    # add Windows .NET button above TkRichtext
-    # add bold button
-    bold_button = tk.Button(frame)
-    bold_button.config(text="Bold", bg="white", command=lambda: turn_text_bold(rt.rt))
-    bold_button.pack()
-
-    # add button to text italic
-    italic_button = tk.Button(frame)
-    italic_button.config(text="Italic", bg="white", command=lambda: turn_text_italic(rt.rt))
-    italic_button.pack()
-
-    # create TkRichText
-    rt = TkRichtext(frame, 500, 500)
-
-    # add scroll to rt
-    rt.Multiline = True
-    # pack to fill horizontally
-    # rt.pack(fill=tk.X)
-    rt.pack()
-
-    # add save button under TkRichtext
-    save_button = tk.Button(frame)
-    save_button.config(text="Save", bg="white", command=lambda: save_body(rt, task, popup))
-    save_button.pack()
-
-    # check if body text has html
-    # if task has RTFBody
-    if task.RTFBody is not None:
-        # set rt.rt.Rtf to task.RTFBody in rtf format
-        rtf_text = System.Text.Encoding.ASCII.GetString(task.RTFBody)  # convert the byte array
-        rt.rt.Rtf = rtf_text
-    else:
-        rt.Text = task.Body
-
-
 def create_calendar_event(task, date, popup):
     # create a calendar event from task
     # create an Outlook application object
@@ -664,7 +573,8 @@ def create_calendar_event(task, date, popup):
     calendar_event.Save()
     # convert calendar_event to string date to display in messagebox
     event_date_str = calendar_event.Start.strftime("%d/%m/%Y")
-    # info dialog to say that the calendar event with subject and date was created and ask if user wants to open it in outlook
+    # info dialog to say that the calendar event with subject and date was created and ask if user wants to open it
+    # in outlook
     if messagebox.askyesno("Calendar event created",
                            "Calendar event with subject '" + calendar_event.Subject + "' and date '" + event_date_str + "' was created.\n\nDo you want to open it in Outlook?"):
         # open calendar event in outlook
@@ -673,7 +583,7 @@ def create_calendar_event(task, date, popup):
     popup.destroy()
 
 
-def create_calendar_event_from_task(task):
+def create_calendar_event_from_task(task_to_create_event_from):
     # open popup window to choose a date
     popup = tk.Toplevel(root)
     popup.title("Choose date")
@@ -693,9 +603,10 @@ def create_calendar_event_from_task(task):
     # create a button to create calendar event
     create_calendar_event_button = tk.Button(frame)
     create_calendar_event_button.config(text="Create calendar event", bg="white",
-                                        command=lambda: create_calendar_event(task, date_picker.get_date(), popup))
+                                        command=lambda: create_calendar_event(task_to_create_event_from,
+                                                                              date_picker.get_date(), popup))
     create_calendar_event_button.pack()
-    color = get_color_code_from_category(task.Categories)
+    color = get_color_code_from_category(task_to_create_event_from.Categories)
     canvas = tk.Canvas(frame)
     # fill frame with canvas
     # put canvas on top of frame above the labels and buttons and date picker
@@ -706,10 +617,11 @@ def create_calendar_event_from_task(task):
     # pack the canvas so that it fills the frame
 
     # draw subject next to color
-    canvas.create_text(60, 25, text=task.Subject, anchor=tk.W)
-    # if task has a Body draw that under the subject, but limit it to 50 characters and add ... at the end if it is longer
-    if task.Body != "":
-        canvas.create_text(60, 50, text=task.Body[:50] + "...", anchor=tk.W)
+    canvas.create_text(60, 25, text=task_to_create_event_from.Subject, anchor=tk.W)
+    # if task has a Body draw that under the subject, but limit it to 50 characters and add ... at the end if it is
+    # longer
+    if task_to_create_event_from.Body != "":
+        canvas.create_text(60, 50, text=task_to_create_event_from.Body[:50] + "...", anchor=tk.W)
     # make canvas white
     canvas.config(bg="white")
 
@@ -739,6 +651,7 @@ def change_priority_to_high(task):
     task.Save()
     load_tasks_in_correct_tab()
 
+
 def action_menu_popup(event, task_to_change):
     # highlight_text(event, canvas_x, task_text)
     # create popup menu
@@ -762,14 +675,18 @@ def action_menu_popup(event, task_to_change):
     categories_menu.add_command(label="A", command=lambda: change_category(task_to_change, "A"))
     categories_menu.add_command(label="B", command=lambda: change_category(task_to_change, "B"))
     categories_menu.add_command(label="C", command=lambda: change_category(task_to_change, "C"))
-    #if is on inbox tab
+    # if is on inbox tab
     current_tab = tab_control.tab(tab_control.select(), "text")
-    if current_tab == "Inbox":
+    if current_tab == "To do":
         popup_menu.add_cascade(label="Add task to today", menu=categories_menu)
     else:
-        popup_menu.add_cascade(label="Change category", menu=categories_menu)
+        popup_menu.add_cascade(label="Change priority", menu=categories_menu)
     # add choice to change priority
     # add submenu to the above change priority
+
+    # add menu to create calendar event from task
+    popup_menu.add_command(label="Create calendar event based on this task",
+                           command=lambda: create_calendar_event_from_task(task_to_change))
     priority_menu = tk.Menu(popup_menu, tearoff=0)
     priority_menu.add_command(label="Low", command=lambda: change_priority_to_low(task_to_change))
     priority_menu.add_command(label="Normal", command=lambda: change_priority_to_normal(task_to_change))
@@ -781,17 +698,11 @@ def action_menu_popup(event, task_to_change):
     popup_menu.add_command(label="Delete task", command=lambda: delete_task(event, task_to_change))
     # move single task to inbox
     if task_to_change.Categories != "":
-        popup_menu.add_command(label="Move to inbox", command=lambda: move_single_task_to_inbox(task_to_change))
+        popup_menu.add_command(label="Move to To do", command=lambda: move_single_task_to_inbox(task_to_change))
     else:
-        popup_menu.add_cascade(label="Change priority", menu=priority_menu)
+        popup_menu.add_cascade(label="Change Outlook priority", menu=priority_menu)
     # add menu to start a timer on the task
     popup_menu.add_command(label="Start timer", command=lambda: open_timer_window(event, task_to_change))
-    # add menu to show task body
-    popup_menu.add_command(label="Show task body", command=lambda: show_task_body(event, task_to_change))
-
-    # add menu to create calendar event from task
-    popup_menu.add_command(label="Create calendar event based on this task",
-                           command=lambda: create_calendar_event_from_task(task_to_change))
 
     # add menu to open task in outlook
     popup_menu.add_command(label="Open task in Outlook", command=lambda: task_to_change.Display())
@@ -812,6 +723,8 @@ def change_category(task, category):
 def draw_tasks(canvas_to_draw_on):
     loading_icon()
     canvas_to_draw_on.delete("all")
+    #as a first object before the tasks draw a + sign to the right
+    #if we are on the today tab
 
     if len(tasks_by_category) == 0:
         # draw a big light green check mark on the canvas
@@ -877,8 +790,9 @@ def draw_tasks(canvas_to_draw_on):
         canvas_to_draw_on.tag_bind(check_box, "<Button-1>", lambda event, task=task: mark_done(event, task))
         # when double clicking the dot open the task in outlook
         canvas_to_draw_on.tag_bind(check_box, "<Double-Button-1>", lambda event, task=task: task.Display())
-        # draw a text with the task information on the canvas with black color and Arial font size 14
-        task_text = canvas_to_draw_on.create_text(x3, y3, text=task_info, fill="black", font=("Arial", 12), anchor=tk.W)
+        # draw a text with the task information on the canvas with black color and Segoe UI font size 12 if it is installed otherwise Arial
+        task_text = canvas_to_draw_on.create_text(x3, y3, text=task_info, fill="black", anchor=tk.W,
+                                                  font=("Segoe UI", 12))
 
         # when hovering over task text, call highlight_text function with canvas and task_text as arguments
         # canvas_to_draw_on.tag_bind(task_text, "<Enter>",
@@ -921,9 +835,25 @@ def draw_tasks(canvas_to_draw_on):
         else:
             canvas_to_draw_on.config(scrollregion=(0, 0, 0, 0))
 
+
+
+
+
+
+
     # date time in format 11 dec 2020
 
-    # display normal cursor after loading tasks
+    if tab_control.tab(tab_control.select(), "text") == "Today":
+        #draw plus sign on the right side of the canvas under the tasks, calculate coordinates based on length of tasks
+        plus_sign = canvas_to_draw_on.create_text(350, (len(tasks_by_category) + 1) * line_height, text="+",
+                                                    fill="green", font=("Segoe UI", 30), anchor=tk.CENTER, activefill="light green")
+
+        # set cursor to hand but only when hovering over the plus sign
+        canvas_to_draw_on.tag_bind(plus_sign, "<Enter>", lambda event: canvas_to_draw_on.config(cursor="hand2"))
+        # bind plus sign to add task popup
+        canvas_to_draw_on.tag_bind(plus_sign, "<Button-1>", lambda event: create_new_task_popup())
+        # when leaving plus sign, set cursor back to arrow
+        canvas_to_draw_on.tag_bind(plus_sign, "<Leave>", lambda event: canvas_to_draw_on.config(cursor="arrow"))
     reset_loading_icon()
 
 
@@ -1277,7 +1207,7 @@ def move_single_task_to_inbox(task):
     task.Categories = ""
     task.Save()
     load_tasks_in_correct_tab()
-    # Message box with title "Task moved to inbox" and text "Task with subject x was moved to inbox"
+    # Message box with title "Task moved to inbox" and text "Task with subject x was moved to To do"
     messagebox.showinfo("Task moved to inbox",
                         "Task with subject:\n" + "'" + task.Subject + "'" + "\nwas moved to inbox")
 
@@ -1334,7 +1264,7 @@ def mark_done(event, task, check_mark=None):
     canvas_to_draw_on.after(3000, load_tasks_in_correct_tab)
 
 
-def save_task(subject, category, due_date, create_calendar_event, date_var=None, popup=None):
+def save_task(subject, category, due_date=None, create_calendar_event=False, date_var=None, popup=None):
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
     # get the namespace object
@@ -1381,12 +1311,7 @@ def save_task(subject, category, due_date, create_calendar_event, date_var=None,
 def load_tasks_in_correct_tab():
     chosen_tab = tab_control.index(tab_control.select())
     if chosen_tab == 0:
-        #get value from dropdown menu
-        dropdown_category = category_dropdown.get()
-        if dropdown_category == "All":
-            load_tasks(canvas_to_draw_on=today_canvas)
-        else:
-            load_tasks(canvas_to_draw_on=today_canvas, show_only_this_category=dropdown_category)
+        load_tasks(canvas_to_draw_on=today_canvas)
     elif chosen_tab == 1:
         load_tasks(canvas_to_draw_on=inbox_canvas, show_only_this_category="No category")
     elif chosen_tab == 2:
@@ -1498,10 +1423,12 @@ def create_new_task_popup(default_category="No category"):
         default_category = "No category"
     # create a popup window
     popup = tk.Toplevel(root)
-    popup.title("Create New Task")
+    popup.title("Add new task to Today")
     popup.config(bg="white")
-    popup.geometry("700x400")
-    popup.resizable(False, False)
+    popup.geometry("400x500")
+    ##set font on popup to Segoe UI
+
+
 
     # create a frame to hold the widgets
     frame = tk.Frame(popup)
@@ -1510,125 +1437,51 @@ def create_new_task_popup(default_category="No category"):
 
     # create a label to display the task subject
     subject_label = tk.Label(frame)
-    subject_label.config(text="Subject:", bg="white")
+    subject_label.config(text="Subject:", bg="white", font=("Segoe UI", 10))
     subject_label.grid(row=0, column=0, padx=10, pady=10)
 
     # create an entry to get the task subject
     subject_entry = tk.Entry(frame)
-    subject_entry.config(width=30)
+    subject_entry.config(width=40, bg="white", font=("Segoe UI", 10))
     subject_entry.grid(row=0, column=1, padx=10, pady=10)
 
-    # create a label to display the task due date
-    due_date_label = tk.Label(frame)
-    due_date_label.config(text="Due Date:", bg="white")
-    due_date_label.grid(row=1, column=0, padx=10, pady=10)
-
-    # create a label to display the task category
+    #make category dropdown next to subject entry
     category_label = tk.Label(frame)
-    category_label.config(text="Category:", bg="white")
-    category_label.grid(row=2, column=0, padx=10, pady=10)
+    category_label.config(text="Category:", bg="white", font=("Segoe UI", 10))
+    category_label.grid(row=1, column=0, padx=10, pady=10)
 
-    # create a variable to store the category
+    # create a variable to hold the category
     category_var = tk.StringVar()
-    category_var.set(default_category)
+    # set the default category
+    category_var.set("A")
+    # create a dropdown menu to select the category
+    category_dropdown = tk.OptionMenu(frame, category_var, "A", "B", "C")
+    category_dropdown.config(width=10, bg="white", font=("Segoe UI", 10))
+    category_dropdown.grid(row=1, column=1, padx=10, pady=10)
 
-    # create a radio button for category
-    category_radio_button_no = tk.Radiobutton(frame)
-    category_radio_button_no.config(text="Inbox (tasks not for today)", variable=category_var, value="No category",
-                                    bg="white")
-    category_radio_button_no.grid(row=2, column=1, padx=10, pady=10)
 
-    # create a radio button for category
-    category_radio_button_a = tk.Radiobutton(frame)
-    category_radio_button_a.config(text="A", variable=category_var, value="A", bg="white")
-    category_radio_button_a.grid(row=2, column=2, padx=10, pady=10)
 
-    # create a radio button for category
-    category_radio_button_b = tk.Radiobutton(frame)
-    category_radio_button_b.config(text="B", variable=category_var, value="B", bg="white")
-    category_radio_button_b.grid(row=2, column=3, padx=10, pady=10)
 
-    # create a radio button for category
-    category_radio_button_c = tk.Radiobutton(frame)
-    category_radio_button_c.config(text="C", variable=category_var, value="C", bg="white")
-    category_radio_button_c.grid(row=2, column=4, padx=10, pady=10)
 
-    # radio buttons for due date today, tomorrow, next week
-    # create a variable to store the category
-    due_date_var = tk.StringVar()
-    due_date_var.set("None")
 
-    # no due date button
-    # Due date label:
-    due_date_label = tk.Label(frame)
-    due_date_label.config(text="Due Date:", bg="white")
-    due_date_label.grid(row=1, column=0, padx=10, pady=10)
 
-    # No due date button
-    due_date_radio_button_none = tk.Radiobutton(frame)
-    due_date_radio_button_none.config(text="None", variable=due_date_var, value="None", bg="white")
-    due_date_radio_button_none.grid(row=1, column=1, padx=10, pady=10)
 
-    # create a radio button for due date
-    due_date_radio_button_today = tk.Radiobutton(frame)
-    due_date_radio_button_today.config(text="Today", variable=due_date_var, value="Today", bg="white")
-    due_date_radio_button_today.grid(row=1, column=2, padx=10, pady=10)
-
-    # create a radio button for due date
-    due_date_radio_button_tomorrow = tk.Radiobutton(frame)
-    due_date_radio_button_tomorrow.config(text="Tomorrow", variable=due_date_var, value="Tomorrow", bg="white")
-    due_date_radio_button_tomorrow.grid(row=1, column=3, padx=10, pady=10)
-
-    # create a radio button for due date
-    due_date_radio_button_next_week = tk.Radiobutton(frame)
-    due_date_radio_button_next_week.config(text="Next Week", variable=due_date_var, value="Next Week", bg="white")
-    due_date_radio_button_next_week.grid(row=1, column=4, padx=10, pady=10)
-
-    # checkbox to create a new calendar event with the same subject as the task and the same color as the category
-    create_calendar_event_checkbox = tk.Checkbutton(frame)
-    # add tkcalendar date picker
-
-    create_calendar_event_checkbox.config(text="Create calendar event", bg="white")
-    # align checkbox with radio buttons
-    create_calendar_event_checkbox.grid(row=3, column=0, padx=10, pady=10)
-    # variable to store the checkbox value
-    create_calendar_event_var = tk.IntVar()
-    create_calendar_event_checkbox.config(variable=create_calendar_event_var)
-
-    # if checkbox is checked show date picker else hide it
-    def show_hide_date_picker():
-        if create_calendar_event_var.get() == 1:
-            date_entry.grid(row=3, column=1, padx=10, pady=10)
-        else:
-            date_entry.grid_forget()
-
-    # add command to checkbox
-    create_calendar_event_checkbox.config(command=show_hide_date_picker)
-
-    # add tkcalendar date entry
-    date_entry = DateEntry(frame)
-    # get default locale of system
-    # set format to dd/mm/yyyy
-    date_entry.config(date_pattern="dd/mm/yyyy")
-    date_entry.grid(row=3, column=1, padx=10, pady=10)
-    # hide date entry from start
-    date_entry.grid_forget()
-    # save picked date in date_var
 
     # create a button to save the task
     save_button = tk.Button(frame)
     save_button.config(text="Save",
-                       command=lambda: save_task(subject_entry.get(), category_var.get(), due_date_var.get(),
-                                                 create_calendar_event_var.get(), date_entry.get_date(),
-                                                 popup),
+                       command=lambda: save_task(subject_entry.get(), category_var.get(), "Today",
+                                                 popup=popup),
                        bg="white")
 
     # create a button to cancel the task
     cancel_button = tk.Button(frame)
     cancel_button.config(text="Cancel", command=popup.destroy, bg="white")
     # show save and cancel buttons at the bottom right corner
-    save_button.grid(row=4, column=2, padx=10, pady=10)
-    cancel_button.grid(row=4, column=3, padx=10, pady=10)
+    save_button.grid(row=4, column=1)
+    cancel_button.grid(row=4, column=2)
+    #align buttons to the left
+    frame.grid_columnconfigure(0, weight=1)
     # focus on subject entry
     subject_entry.focus_set()
     # bind enter key to save button
@@ -1649,9 +1502,12 @@ root.bind("<Control-r>", lambda event: load_tasks_in_correct_tab())
 root.bind("<Alt-m>", lambda event: move_tasks_to_inbox(tasks_by_category))
 
 root.bind("<Control-t>", lambda event: switch_to_tab(5))
-root.bind("<Control-a>", lambda event: switch_to_tab(1))
-root.bind("<Control-b>", lambda event: switch_to_tab(2))
-root.bind("<Control-c>", lambda event: switch_to_tab(3))
+#bind Control+A to only show A tasks on today tab
+root.bind("<Control-a>", lambda event: load_tasks(canvas_to_draw_on=today_canvas, show_only_this_category="A"))
+#bind Control+B to only show B tasks on today tab
+root.bind("<Control-b>", lambda event: load_tasks(canvas_to_draw_on=today_canvas, show_only_this_category="B"))
+#bind Control+C to only show C tasks on today tab
+root.bind("<Control-c>", lambda event: load_tasks(canvas_to_draw_on=today_canvas, show_only_this_category="C"))
 
 
 def generate_html_file_to_print():
@@ -1737,70 +1593,54 @@ def generate_html_task_line(task):
         return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + " - " + finished_date.strftime(
             "%d/%m/%Y") + "<br>"
 
+def open_licenses_file():
+    #open licenses.txt file with complete file path and utf-8 encoding
+    os.startfile(os.path.join(os.path.dirname(__file__), "licenses.txt"))
 
 def open_help_window():
+   #open help window where a uneditable text widget shows the help text, the widget is flat and shows no border and is scrollable
     # create a popup window
     popup = tk.Toplevel(root)
     popup.title("Help")
     popup.config(bg="white")
-    popup.geometry("600x600")
+    popup.geometry("800x500")
     popup.resizable(False, False)
-    # load licenses.txt into a text widget that is nicely formatted and read only
-    # create a frame to hold the widgets
-    frame = tk.Frame(popup)
-    frame.config(bg="white")
-    frame.pack(fill=tk.BOTH)
-    # add RtfText widget to frame
-    # create TkRichText
-    # create two tabs, one with licenses and one with help
-    # create a tab control
-    tab_control = ttk.Notebook(frame)
-    tab_control.pack(expand=1, fill="both")
-    # create a tab for help
-    help_tab = ttk.Frame(tab_control)
-    # add help tab to tab control
-    tab_control.add(help_tab, text="Help")
-    # create a tab for licenses
-    licenses_tab = ttk.Frame(tab_control)
-    # add licenses tab to tab control
-    tab_control.add(licenses_tab, text="Licenses")
-    # create a frame for the help tab
-    help_frame = tk.Frame(help_tab)
-    help_frame.config(bg="white")
-    help_frame.pack(fill=tk.BOTH)
-    # create a frame for the licenses tab
-    licenses_frame = tk.Frame(licenses_tab)
-    licenses_frame.config(bg="white")
-    licenses_frame.pack(fill=tk.BOTH)
-    # add RtfText widget to frame
-    # create TkRichText for licenses
 
-    rt = TkRichtext(master=licenses_frame, width=600, height=600)
-    # pack the widget
-    rt.pack(fill=tk.BOTH, expand=True)
-    # licenses_file_path
-    licenses_file_path = os.path.join(os.path.dirname(__file__), "licenses.rtf")
-    rt.loadfile(licenses_file_path)
 
-    # add RtfText widget to frame
+    #read text from help.txt file with complete file path and utf-8 encoding
+    help_text_to_show = open(os.path.join(os.path.dirname(__file__), "help.txt"), "r", encoding="utf-8").read()
 
-    # create TkRichText for help
-    rt = TkRichtext(master=help_frame, width=600, height=600)
-    # pack the widget
-    rt.pack(fill=tk.BOTH, expand=True)
-    # open the help.rft file in the help frame
-    help_file_path = os.path.join(os.path.dirname(__file__), "help.rtf")
-    rt.loadfile(help_file_path)
+    #create a canvas that fills the frame
+    help_canvas = tk.Canvas(popup)
+    help_canvas.config(bg="white")
+    help_canvas.pack(fill=tk.BOTH, expand=True)
 
-    # reaonly
-    rt.ReadOnly = True
+    #for each line in the help.txt file, draw a text on the canvas with Sego UI font and size 10
+    for line in help_text_to_show.splitlines():
+        #create new text object for each line and increase the y coordinate by 20 for each line
+        help_canvas.create_text(10, 10 + 20 * help_text_to_show.splitlines().index(line), text=line, font=("Segoe UI", 12), anchor=tk.NW)
 
-    # close the help.txt file
+
+    #create a scrollbar for the canvas
+    scrollbar = tk.Scrollbar(help_canvas)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    #bind scrollbar to canvas
+    help_canvas.config(yscrollcommand=scrollbar.set)
+    scrollbar.config(command=help_canvas.yview)
+
+
 
     # create a button to close the popup
-    close_button = tk.Button(frame)
+    close_button = tk.Button(help_canvas)
     close_button.config(text="Close", command=popup.destroy, bg="white")
-    close_button.pack(padx=10, pady=10)
+    # show save and cancel buttons at the bottom right corner
+    close_button.pack(side=tk.BOTTOM, padx=10, pady=10)
+
+    licenses_button = tk.Button(help_canvas)
+    licenses_button.config(text="Licenses", command=open_licenses_file, bg="white")
+    licenses_button.pack(side=tk.BOTTOM, padx=10, pady=10)
+
+
 
 
 def load_inbox():
@@ -1818,16 +1658,65 @@ def load_note_input():
 
 # open message input box to rename a task Subject
 def rename_task(event, task):
-    # message box with input with input that has the current task subject as default value and input text that is as long as the current task subject
-    new_subject = simpledialog.askstring("Rename task", "New subject:", initialvalue=task.Subject)
+    # poup window with entry to rename task
+    popup = tk.Toplevel(root)
+    popup.title("Rename task")
+    popup.config(bg="white")
+    popup.geometry("700x400")
+    popup.resizable(False, False)
+
+    # create a frame to hold the widgets
+    frame = tk.Frame(popup)
+    frame.config(bg="white")
+    frame.pack(fill=tk.BOTH)
+
+    # create a label to display the task subject
+    subject_label = tk.Label(frame)
+    subject_label.config(text="Subject:", bg="white")
+    subject_label.grid(row=0, column=0, padx=10, pady=10)
+
+    # create a Text widget to display the task subject
+    subject_text = tk.Text(frame)
+    # set width based on length of task subject
+    subject_text.config(width=len(task.Subject))
+    # set height to 1
+    subject_text.config(height=2)
+    subject_text.grid(row=0, column=1, padx=10, pady=10)
+    # insert task subject into text widget
+    subject_text.insert(tk.END, task.Subject)
+
+    save_button = tk.Button(frame)
+
+    save_button.config(text="Save",
+                       command=lambda: rename_task_subject(task, subject_text.get("1.0", tk.END), popup),
+                       bg="white")
     # if new subject is not empty
-    if new_subject:
+    save_button.grid(row=1, column=1, padx=10, pady=10)
+    # create a button to cancel the task
+    cancel_button = tk.Button(frame)
+    cancel_button.config(text="Cancel", command=popup.destroy, bg="white")
+    # show save and cancel buttons at the bottom right corner
+    cancel_button.grid(row=1, column=2, padx=10, pady=10)
+    # focus on subject entry
+    subject_text.focus_set()
+    # bind enter key to save button
+    popup.bind("<Return>", lambda event: rename_task_subject(task, subject_text.get("1.0", tk.END), popup))
+
+
+def rename_task_subject(task, new_subject, popup):
+    # if new subject is not empty
+    if new_subject != "":
         # set task subject to new subject
         task.Subject = new_subject
-        # save task
+        # save the task
         task.Save()
-        # reload tasks
+        # destroy the popup
+        popup.destroy()
+        # load tasks in correct tab
         load_tasks_in_correct_tab()
+    else:
+        # show error message
+        messagebox.showerror("Error", "Please add a new subject")
 
 
 def init_categories():
