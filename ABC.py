@@ -1061,11 +1061,17 @@ def load_tasks(canvas_to_draw_on, show_tasks_finished_today=False, show_all_task
         draw_tasks(canvas_to_draw_on)
 
     return tasks_by_category
-def remove_flag_from_email(email):
-    email.FlagRequest = ""
+def mark_email_as_completed(email):
+    #mark email as completed
+    email.FlagStatus = 1
     email.Save()
     draw_flagged_emails(get_canvas_to_draw_on())
 
+def unflag_email(email):
+    #unflag email
+    email.FlagStatus = 0
+    email.Save()
+    draw_flagged_emails(get_canvas_to_draw_on())
 def create_task_from_email(email):
     # create a new task
     # create an Outlook application object
@@ -1081,17 +1087,22 @@ def create_task_from_email(email):
     task_from_email.Save()
     #ask user if he also wants to remove the flag from the email
     if messagebox.askyesno("Remove flag from email?", "A task was created in To do. Do you also want to remove the flag from the email?"):
-        remove_flag_from_email(email)
+        unflag_email(email)
     load_tasks_in_correct_tab()
 
-def remove_flag(event, email):
-    #open popup menu
+def uncomplete(email):
+    #mark email as not completed
+    email.FlagStatus = 0
+    email.Save()
+    draw_flagged_emails(get_canvas_to_draw_on())
+
+def add_popup_menu_to_flag(event, email):
     popup_menu = tk.Menu(root, tearoff=0)
-    #set title of popup menu
-    popup_menu.add_command(label="Remove flag", command=lambda: remove_flag_from_email(email))
-    #add popup menu item to create task from Email subject
+    popup_menu.add_command(label="Unflag email", command=lambda: unflag_email(email))
+    popup_menu.add_command(label="Mark as completed", command=lambda: mark_email_as_completed(email))
+    # add popup menu item to create task from Email subject
     popup_menu.add_command(label="Create task from email subject", command=lambda: create_task_from_email(email))
-    #display popup menu
+    # display popup menu
     popup_menu.tk_popup(event.x_root, event.y_root)
 
 
@@ -1110,7 +1121,7 @@ def draw_flagged_emails(canvas_to_draw_on):
     emails = emails_folder.Items
     flagged_emails = []
     for email in emails:
-        if email.FlagRequest:
+        if email.FlagRequest != "":
             flagged_emails.append(email)
     # sort the list by category in ascending order
     flagged_emails.sort(key=lambda x: x.FlagRequest)
@@ -1122,10 +1133,14 @@ def draw_flagged_emails(canvas_to_draw_on):
                                       anchor=tk.W)
         canvas_to_draw_on.create_text(70, (i + 1) * line_height, text=subject, fill="black", font=("Segoe UI", 12),
                                       anchor=tk.W)
+        #if email is completed draw a check mark next to the flag
+        if email.FlagStatus == 1:
+            canvas_to_draw_on.create_text(30, (i + 1) * line_height, text="✓", fill="green", font=("Segoe UI", 12),
+                                          anchor=tk.W)
         # when double clicking the dot open the task in outlook
         canvas_to_draw_on.tag_bind("all", "<Double-Button-1>", lambda event, email=email: email.Display())
         # when clicking the flag open a popup menu with one option to remove the flag
-        canvas_to_draw_on.tag_bind("all", "<Button-3>", lambda event, email=email: remove_flag(event, email))
+        canvas_to_draw_on.tag_bind("all", "<Button-3>", lambda event, email=email: add_popup_menu_to_flag(event, email))
     # if there are no flagged emails, draw a frog smiley saying "No flagged emails"
 
     # if there are no flagged emails, draw a frog smiley saying "No flagged emails"
@@ -1134,7 +1149,7 @@ def draw_flagged_emails(canvas_to_draw_on):
         canvas_to_draw_on.create_text(350, 200, text="No flagged emails", fill="green", font=("Segoe UI", 30),
                                       anchor=tk.CENTER)
         #small text in Segoe UI with the same color that says: If you flag an email it will show up here
-        canvas_to_draw_on.create_text(350, 250, text="If you flag an email in Outlook it will show up here", fill="green",
+        canvas_to_draw_on.create_text(350, 250, text="If you flag an email in your Outlook inbox it will show up here", fill="green",
                                       font=("Segoe UI", 10),
                                       anchor=tk.CENTER)
 
