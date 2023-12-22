@@ -8,7 +8,6 @@ from inbox import Inbox
 from tkcalendar import DateEntry
 import xml.etree.ElementTree as ET
 
-
 # set some constants for the drawing
 dot_radius = 8  # radius of each dot
 dot_gap = 10  # gap between each dot and task
@@ -66,9 +65,25 @@ tasks_finished_today_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_t
 
 tab_control.pack(expand=1, fill="both")
 today_canvas = tk.Canvas(today_tab)
+# when today_canvas gets focus, load tasks with category Today
+today_canvas.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
+# when inbox canvas gets focus, load tasks with category Inbox
+
+flagged_email_tab = ttk.Frame(tab_control)
+tab_control.add(flagged_email_tab, text="Flagged emails")
+tab_control.pack(expand=1, fill="both")
+# on focus of tab Flagged email, load tasks with category Flagged email
+flagged_email_tab.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
+
+flagged_email_canvas = tk.Canvas(flagged_email_tab)
+# when flagged_email_canvas gets focus, load tasks with category Flagged email
+flagged_email_canvas.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
+# make canvas fill the root window
+flagged_email_canvas.pack(fill=tk.BOTH, expand=True)
+
+
 # add a button below the canvas in a frame to create a new task
 # create a frame to hold the widgets
-
 
 
 def create_new_task(task_subject):
@@ -139,7 +154,7 @@ inbox_canvas = tk.Canvas(inbox_tab)
 inbox_canvas.pack(fill=tk.BOTH, expand=True)
 # add canvas to inbox tab
 inbox_canvas.pack(fill=tk.BOTH, expand=True)
-
+inbox_canvas.bind("<FocusIn>", lambda event: load_tasks_in_correct_tab())
 tasks_finished_today_canvas = tk.Canvas(tasks_finished_today_tab)
 # make the canvas fill the root window
 tasks_finished_today_canvas.pack(fill=tk.BOTH, expand=True)
@@ -246,52 +261,58 @@ def open_timer_window(event, task_to_start_timer_on):
     # make subject label left center
     subject_label.pack()
     # make subject label fill x
-    subject_label.pack(fill=tk.X)
-    # create a label to display the task category
-    category_label = tk.Label(canvas)
-    category_label.config(text=task_to_start_timer_on.Categories, bg="white")
-    category_label.pack()
-    # create a label to display the task body
-    body_label = tk.Label(canvas)
-    body_label.config(text=task_to_start_timer_on.Body, bg="white")
-    body_label.pack()
-    # create a label to display the timer
+    # subject_label.pack(fill=tk.X)
+    # create a colored rectangle next to the subject label
+    # get color from category
+    color = get_color_code_from_category(task_to_start_timer_on.Categories)
+
+    subject_label.pack(pady=20)
+
     timer_label = tk.Label(canvas)
-    timer_label.config(text="25:00", bg="white", font=("Arial", 50, "bold"))
+    timer_label.config(text="25:00", bg="white", font=("Segoe UI", 50, "bold"))
     timer_label.pack()
     # create a button to stop the timer
-    stop_button = tk.Button(canvas)
-    stop_button.config(text="Stop", bg="white",
-                       command=lambda: close_popup_and_save_time_in_task(event, popup, task_to_start_timer_on))
-    stop_button.pack()
 
     # make all labels white background
     subject_label.config(bg="white")
-    category_label.config(bg="white")
-    body_label.config(bg="white")
+
     timer_label.config(bg="white")
+
+    # calculate x and y of the timer label
+
+    # make a label with a rectangle under the subject label
+    rectange_label = tk.Label(canvas)
+    rectangle_char = "▬"
+    rectange_label.config(text=rectangle_char)
+    # make rectangle char big
+    rectange_label.config(font=("Arial", 50))
+    # make rectangle char the color of the category
+    rectange_label.config(fg=color)
+    # make background color also the color of the category
+    rectange_label.config(bg=color)
+    rectange_label.pack()
+
     # make subject label with big font
-    subject_label.config(font=("Georgia", 40))
+    subject_label.config(font=("Segoe UI", 40))
     # make subject label wrap
     subject_label.config(wraplength=1200)
     # calculate how many characters can fit in one line
     # make canvas white background
     canvas.config(bg="white")
+    # make space between labels and the buttons under it
+    rectange_label.pack(pady=20)
+    stop_button = tk.Button(canvas)
+    # set font of stop button to Segoe UI
+    stop_button.config(font=("Segoe UI", 10))
+    stop_button.config(text="Stop", bg="white",
+                       command=lambda: close_popup_and_save_time_in_task(event, popup, task_to_start_timer_on))
+    stop_button.pack()
     # make popup white background
     popup.config(bg="white")
     # on press escape, close this popup and focus on root
     popup.bind("<Escape>", lambda event: close_popup_and_save_time_in_task(event, popup, task_to_start_timer_on))
 
     # make space between labels and the buttons under it
-
-    set_estimated_work_button = tk.Button(canvas)
-    set_estimated_work_button.config(text="Set estimated work", bg="white")
-    # bind button to set_estimated_work function
-    set_estimated_work_button.bind("<Button-1>",
-                                   lambda event: set_estimated_work(event, popup, timer_label, task_to_start_timer_on))
-    set_estimated_work_button.pack()
-    # make space between labels and the buttons under it
-    set_estimated_work_button.pack(pady=10)
 
     start_timer(timer_label, popup)
     # focus on popup
@@ -335,11 +356,7 @@ def close_popup_and_save_time_in_task(event, popup, task):
     worked_time_minutes = worked_time // 60
     # if worked time is 0
     if worked_time_minutes < 1:
-        # show message box to ask if user wants to save time in task
-        if messagebox.askyesno("Save time in task?",
-                               "You worked less than 1 minute on the task.\nDo you want to save time in task?\nIt will be saved as one minute in Outlook."):
-            # set worked time to 1 minute
-            worked_time_minutes = 1
+        worked_time_minutes = 1
 
     task.ActualWork = set_task_actual_work(task, worked_time_minutes)
     task.PercentComplete = calculate_percentage_of_task_done(task)
@@ -484,7 +501,7 @@ def search_tasks(subject, body, search_results_listbox, popup):
     for task_item in search_results:
         # if task is done draw a green check mark on the right side of the task text
         if task_item.Status == 2:
-            search_results_listbox.insert(tk.END, task_item.Subject + " âœ“")
+            search_results_listbox.insert(tk.END, task_item.Subject + " ✓")
         else:
             search_results_listbox.insert(tk.END, task_item.Subject)
 
@@ -530,7 +547,7 @@ def start_timer(timer_label, popup):
         # if time is up, show a happy frog that says "Time's up!"
         if time <= 1:
             popup_canvas = popup.winfo_children()[0]
-            popup_canvas.create_text(350, 200, text="ðŸ˜Š", fill="green", font=("Arial", 100),
+            popup_canvas.create_text(350, 200, text="😊", fill="green", font=("Arial", 100),
                                      anchor=tk.CENTER)
             time_up_text = popup_canvas.create_text(350, 300, text="Time's up!", fill="green", font=("Arial", 30),
                                                     anchor=tk.CENTER)
@@ -723,14 +740,24 @@ def change_category(task, category):
 def draw_tasks(canvas_to_draw_on):
     loading_icon()
     canvas_to_draw_on.delete("all")
-    #as a first object before the tasks draw a + sign to the right
-    #if we are on the today tab
+    # as a first object before the tasks draw a + sign to the right
+    # if we are on the today tab
 
     if len(tasks_by_category) == 0:
-        # draw a big light green check mark on the canvas
-        canvas_to_draw_on.create_text(350, 200, text="âœ“", fill="green", font=("Arial", 100), anchor=tk.CENTER)
-        # draw a text under the check mark saying "No tasks"
-        if current_filter is None or current_filter == "":
+        selected_tab = tab_control.tab(tab_control.select(), "text")
+        if selected_tab == "Done today":
+            canvas_to_draw_on.create_text(350, 70, text="🐸", fill="green", font=("Segoe UI", 50), anchor=tk.CENTER)
+            canvas_to_draw_on.create_text(350, 200, text="No tasks marked done today", fill="green", font=("Segoe UI", 30),
+                                          anchor=tk.CENTER)
+            # small text in Segoe UI with the same color that says: If you flag an email it will show up here
+            canvas_to_draw_on.create_text(350, 250, text="Yet. Mark a task done by clicking the colored box left to the subject.",
+                                          fill="green",
+                                          font=("Segoe UI", 10),
+                                          anchor=tk.CENTER)
+            reset_loading_icon()
+            return
+        canvas_to_draw_on.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
+        if current_filter is None or current_filter == "" or tab_control.tab(tab_control.select(), "text") != "Done today":
             canvas_to_draw_on.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         else:
 
@@ -738,11 +765,7 @@ def draw_tasks(canvas_to_draw_on):
                                           font=("Arial", 30),
                                           anchor=tk.CENTER)
         # draw a text under the check mark saying "Press ctrl+n to create a new task"
-        canvas_to_draw_on.create_text(350, 350, text="Press ctrl+n to create a new task", fill="green",
-                                      font=("Arial", 15),
-                                      anchor=tk.CENTER)
-        # draw a text under the check mark saying "Press ctrl+r to reload the tasks"
-        canvas_to_draw_on.create_text(350, 380, text="Press ctrl+r to reload the tasks", fill="green",
+        canvas_to_draw_on.create_text(350, 350, text="Press Ctrl+N to create one or several new tasks", fill="green",
                                       font=("Arial", 15),
                                       anchor=tk.CENTER)
 
@@ -809,7 +832,7 @@ def draw_tasks(canvas_to_draw_on):
 
         # if task is done draw a green check mark inside the box
         if task.Status == 2:
-            check_mark = canvas_to_draw_on.create_text(x1, y1, text="âœ“", fill="light green", font=("Arial", 12),
+            check_mark = canvas_to_draw_on.create_text(x1, y1, text="✓", fill="light green", font=("Arial", 12),
                                                        anchor=tk.CENTER)
             # bind check mark to mark_done function
             canvas_to_draw_on.tag_bind(check_mark, "<Button-1>",
@@ -835,25 +858,6 @@ def draw_tasks(canvas_to_draw_on):
         else:
             canvas_to_draw_on.config(scrollregion=(0, 0, 0, 0))
 
-
-
-
-
-
-
-    # date time in format 11 dec 2020
-
-    if tab_control.tab(tab_control.select(), "text") == "Today":
-        #draw plus sign on the right side of the canvas under the tasks, calculate coordinates based on length of tasks
-        plus_sign = canvas_to_draw_on.create_text(350, (len(tasks_by_category) + 1) * line_height, text="+",
-                                                    fill="green", font=("Segoe UI", 30), anchor=tk.CENTER, activefill="light green")
-
-        # set cursor to hand but only when hovering over the plus sign
-        canvas_to_draw_on.tag_bind(plus_sign, "<Enter>", lambda event: canvas_to_draw_on.config(cursor="hand2"))
-        # bind plus sign to add task popup
-        canvas_to_draw_on.tag_bind(plus_sign, "<Button-1>", lambda event: create_new_task_popup())
-        # when leaving plus sign, set cursor back to arrow
-        canvas_to_draw_on.tag_bind(plus_sign, "<Leave>", lambda event: canvas_to_draw_on.config(cursor="arrow"))
     reset_loading_icon()
 
 
@@ -971,7 +975,7 @@ def draw_tasks_with_icons(canvas_to_draw_on, task, x3, y3):
 
         # if task is complete draw a check mark on the right side of the due date text
         if task.Status == 2:
-            canvas_to_draw_on.create_text(x3 + 310, y3, text="âœ“", fill="green", font=("Arial", 12), anchor=tk.W)
+            canvas_to_draw_on.create_text(x3 + 310, y3, text="✓", fill="green", font=("Arial", 12), anchor=tk.W)
 
 
 def load_tasks(canvas_to_draw_on, show_tasks_finished_today=False, show_all_tasks=False,
@@ -1049,51 +1053,92 @@ def load_tasks(canvas_to_draw_on, show_tasks_finished_today=False, show_all_task
     if show_only_this_category == "No category":
         # sort tasks by priority in outlook, high priority first
         tasks_by_category.sort(key=lambda x: x[0].Importance, reverse=True)
-    # check how many tasks are in the list and show a warning if there are more than 20 tasks, and then ask the user if he wants to see the warning next time and save his anser in a config file
-
-    if not first_time_loading_tasks and not show_all_tasks and not show_tasks_finished_today and not show_only_this_category:
-        task_limit = read_number_of_tasks_limit()
-        if task_limit > 0:
-            if len(tasks_by_category) > read_number_of_tasks_limit():
-                # read todays date from xml file
-                last_warning_date = read_xml_file("last_warning_date")
-                # if todays date is not the same as the date in the xml file
-                # check if the selected tab is the today tab
-                chosen_tab = tab_control.index(tab_control.select())
-                if chosen_tab == 0:
-                    if last_warning_date != datetime.datetime.today().strftime("%d/%m/%Y"):
-                        # show warning
-                        # ask user if he wants to see warning more today
-                        show_warning = messagebox.askyesno("Warning", "Your tasks per day limit is set to " + str(
-                            task_limit) + "\n\nYou have " + str(
-                            len(tasks_by_category)) + " tasks, consider moving some to the inbox to not get exhausted (Alt+M or file menu).\n\nDo you want to see this warning again today?",
-                                                           icon="warning")
-                        # if user wants to see warning next time
-                        if not show_warning:
-                            # write todays date to xml file
-                            # open xml file
-                            settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
-                            tree = ET.parse(settings_file)
-                            # get root element
-                            root = tree.getroot()
-                            # get tag from xml file
-                            tag = root.find("last_warning_date")
-                            # set tag text to todays date
-                            if tag is not None:
-                                tag.text = datetime.datetime.today().strftime("%d/%m/%Y")
-                            else:
-                                # create tag
-                                tag = ET.SubElement(root, "last_warning_date")
-                                # set tag text to todays date
-                                tag.text = datetime.datetime.today().strftime("%d/%m/%Y")
-                            # write to xml file
-                            tree.write(settings_file)
+    # check how many tasks are in the list and show a warning if there are more than 20 tasks, and then ask the user
+    # if he wants to see the warning next time and save his anser in a config fil
 
     if draw:
         canvas_to_draw_on = get_canvas_to_draw_on()
         draw_tasks(canvas_to_draw_on)
 
     return tasks_by_category
+def remove_flag_from_email(email):
+    email.FlagRequest = ""
+    email.Save()
+    draw_flagged_emails(get_canvas_to_draw_on())
+
+def create_task_from_email(email):
+    # create a new task
+    # create an Outlook application object
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    task_from_email = outlook.CreateItem(3)
+    # set task subject to email subject
+    task_from_email.Subject = email.Subject
+    # set task body to email body
+    task_from_email.Body = email.Body
+    # set task categories to email categories
+    task_from_email.Categories = email.Categories
+    # save task
+    task_from_email.Save()
+    #ask user if he also wants to remove the flag from the email
+    if messagebox.askyesno("Remove flag from email?", "A task was created in To do. Do you also want to remove the flag from the email?"):
+        remove_flag_from_email(email)
+    load_tasks_in_correct_tab()
+
+def remove_flag(event, email):
+    #open popup menu
+    popup_menu = tk.Menu(root, tearoff=0)
+    #set title of popup menu
+    popup_menu.add_command(label="Remove flag", command=lambda: remove_flag_from_email(email))
+    #add popup menu item to create task from Email subject
+    popup_menu.add_command(label="Create task from email subject", command=lambda: create_task_from_email(email))
+    #display popup menu
+    popup_menu.tk_popup(event.x_root, event.y_root)
+
+
+def draw_flagged_emails(canvas_to_draw_on):
+    loading_icon()
+    #clear
+    canvas_to_draw_on.delete("all")
+    # find emails that have been flagged
+    # create an Outlook application object
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    # get the namespace object
+    namespace = outlook.GetNamespace("MAPI")
+    # get the default folder for emails
+    emails_folder = namespace.GetDefaultFolder(6)
+    # get all the emails in the folder
+    emails = emails_folder.Items
+    flagged_emails = []
+    for email in emails:
+        if email.FlagRequest:
+            flagged_emails.append(email)
+    # sort the list by category in ascending order
+    flagged_emails.sort(key=lambda x: x.FlagRequest)
+    for i, email in enumerate(flagged_emails):
+        # get the email subject and due date
+        subject = email.Subject
+        # draw a flag with the color of the flagged email and then the subject and bind it to open the email in outlook and left align the text
+        canvas_to_draw_on.create_text(50, (i + 1) * line_height, text="🚩", fill="red", font=("Segoe UI", 12),
+                                      anchor=tk.W)
+        canvas_to_draw_on.create_text(70, (i + 1) * line_height, text=subject, fill="black", font=("Segoe UI", 12),
+                                      anchor=tk.W)
+        # when double clicking the dot open the task in outlook
+        canvas_to_draw_on.tag_bind("all", "<Double-Button-1>", lambda event, email=email: email.Display())
+        # when clicking the flag open a popup menu with one option to remove the flag
+        canvas_to_draw_on.tag_bind("all", "<Button-3>", lambda event, email=email: remove_flag(event, email))
+    # if there are no flagged emails, draw a frog smiley saying "No flagged emails"
+
+    # if there are no flagged emails, draw a frog smiley saying "No flagged emails"
+    if len(flagged_emails) == 0:
+        canvas_to_draw_on.create_text(350, 70, text="🐸", fill="green", font=("Segoe UI", 50), anchor=tk.CENTER)
+        canvas_to_draw_on.create_text(350, 200, text="No flagged emails", fill="green", font=("Segoe UI", 30),
+                                      anchor=tk.CENTER)
+        #small text in Segoe UI with the same color that says: If you flag an email it will show up here
+        canvas_to_draw_on.create_text(350, 250, text="If you flag an email in Outlook it will show up here", fill="green",
+                                      font=("Segoe UI", 10),
+                                      anchor=tk.CENTER)
+
+    reset_loading_icon()
 
 
 # function to change cursor to a hand when any task is hovered over
@@ -1120,6 +1165,8 @@ def get_canvas_to_draw_on():
         canvas_to_draw_on = inbox_canvas
     elif chosen_tab == 2:
         canvas_to_draw_on = tasks_finished_today_canvas
+    elif chosen_tab == 3:
+        canvas_to_draw_on = flagged_email_canvas
     return canvas_to_draw_on
 
 
@@ -1212,30 +1259,6 @@ def move_single_task_to_inbox(task):
                         "Task with subject:\n" + "'" + task.Subject + "'" + "\nwas moved to inbox")
 
 
-def read_xml_file(tag):
-    settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
-    if os.path.exists(settings_file):
-        tree = ET.parse(settings_file)
-        # get root element
-        root = tree.getroot()
-        # get tag from xml file
-        tag = root.find(tag)
-        # return tag text
-        if tag is not None:
-            return tag.text
-
-    return None
-
-
-def read_number_of_tasks_limit():
-    warning_limit_number = read_xml_file("warning_limit_number")
-    if warning_limit_number is not None:
-        warning_limit_number = int(read_xml_file("warning_limit_number"))
-    else:
-        warning_limit_number = 0
-    return warning_limit_number
-
-
 # create a root window for the GUI
 
 
@@ -1252,7 +1275,7 @@ def mark_done(event, task, check_mark=None):
     if task.Status == 2:
         # draw a small green check mark a little bit bigger then the item, inside the item
         canvas_to_draw_on.create_text(canvas_to_draw_on.bbox(item)[0] + 1, canvas_to_draw_on.bbox(item)[1] + 6,
-                                      text="âœ“", fill="light green",
+                                      text="✓", fill="light green",
                                       font=("Arial", 18), anchor=tk.W)
     else:
         # delete the check mark from item
@@ -1317,7 +1340,7 @@ def load_tasks_in_correct_tab():
     elif chosen_tab == 2:
         load_tasks(canvas_to_draw_on=tasks_finished_today_canvas, show_tasks_finished_today=True)
     else:
-        pass
+        draw_flagged_emails(canvas_to_draw_on=flagged_email_canvas)
 
 
 def create_new_calendar_event_based_on_task(category, due_date, namespace, subject):
@@ -1428,8 +1451,6 @@ def create_new_task_popup(default_category="No category"):
     popup.geometry("400x500")
     ##set font on popup to Segoe UI
 
-
-
     # create a frame to hold the widgets
     frame = tk.Frame(popup)
     frame.config(bg="white")
@@ -1445,7 +1466,7 @@ def create_new_task_popup(default_category="No category"):
     subject_entry.config(width=40, bg="white", font=("Segoe UI", 10))
     subject_entry.grid(row=0, column=1, padx=10, pady=10)
 
-    #make category dropdown next to subject entry
+    # make category dropdown next to subject entry
     category_label = tk.Label(frame)
     category_label.config(text="Category:", bg="white", font=("Segoe UI", 10))
     category_label.grid(row=1, column=0, padx=10, pady=10)
@@ -1458,14 +1479,6 @@ def create_new_task_popup(default_category="No category"):
     category_dropdown = tk.OptionMenu(frame, category_var, "A", "B", "C")
     category_dropdown.config(width=10, bg="white", font=("Segoe UI", 10))
     category_dropdown.grid(row=1, column=1, padx=10, pady=10)
-
-
-
-
-
-
-
-
 
     # create a button to save the task
     save_button = tk.Button(frame)
@@ -1480,7 +1493,7 @@ def create_new_task_popup(default_category="No category"):
     # show save and cancel buttons at the bottom right corner
     save_button.grid(row=4, column=1)
     cancel_button.grid(row=4, column=2)
-    #align buttons to the left
+    # align buttons to the left
     frame.grid_columnconfigure(0, weight=1)
     # focus on subject entry
     subject_entry.focus_set()
@@ -1493,22 +1506,22 @@ def switch_to_tab(tab_index):
     load_tasks_in_correct_tab()
 
 
-# bind create new task to ctrl+n
-root.bind("<Control-n>", lambda event: create_new_task_popup(current_filter))
-# bind reload to ctrl+r
+
+
 canvas = get_canvas_to_draw_on()
 root.bind("<Control-r>", lambda event: load_tasks_in_correct_tab())
-# bind ctrl+Â´m to move tasks to inbox
+# bind ctrl+´m to move tasks to inbox
 root.bind("<Alt-m>", lambda event: move_tasks_to_inbox(tasks_by_category))
 
 root.bind("<Control-t>", lambda event: switch_to_tab(5))
-#bind Control+A to only show A tasks on today tab
+# bind Control+A to only show A tasks on today tab
 root.bind("<Control-a>", lambda event: load_tasks(canvas_to_draw_on=today_canvas, show_only_this_category="A"))
-#bind Control+B to only show B tasks on today tab
+# bind Control+B to only show B tasks on today tab
 root.bind("<Control-b>", lambda event: load_tasks(canvas_to_draw_on=today_canvas, show_only_this_category="B"))
-#bind Control+C to only show C tasks on today tab
+# bind Control+C to only show C tasks on today tab
 root.bind("<Control-c>", lambda event: load_tasks(canvas_to_draw_on=today_canvas, show_only_this_category="C"))
-
+#bind Control+N to load_inbox
+root.bind("<Control-n>", lambda event: load_inbox())
 
 def generate_html_file_to_print():
     # while html file is being generated show a blinking loading text on root window
@@ -1573,7 +1586,7 @@ def generate_html_file_to_print():
 
 def generate_dots_and_subjects(category, finished_date, html_file, subject, task):
     if task.Status == 2:
-        html_file.write("<span style='color:green; font-size:40px'>âœ“</span>")
+        html_file.write("<span style='color:green; font-size:40px'>✓</span>")
 
     html_file.write(generate_html_task_line(task))
     # if the task has a body print it in small grey nice formatted letters under the task subject with space before and after
@@ -1587,18 +1600,20 @@ def generate_html_task_line(task):
     # if task has no date
     if task.DateCompleted is None or task.DateCompleted != datetime.datetime.strptime("01/01/4501", "%d/%m/%Y"):
         # return task without date with color from category
-        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + " (" + task.Categories + ")<br>"
+        return "<span style='color:" + color + "; font-size:40px'>●</span>" + " " + task.Subject + " (" + task.Categories + ")<br>"
     else:
         # return task with date with color from category
-        return "<span style='color:" + color + "; font-size:40px'>â—</span>" + " " + task.Subject + " - " + finished_date.strftime(
+        return "<span style='color:" + color + "; font-size:40px'>●</span>" + " " + task.Subject + " - " + finished_date.strftime(
             "%d/%m/%Y") + "<br>"
 
+
 def open_licenses_file():
-    #open licenses.txt file with complete file path and utf-8 encoding
+    # open licenses.txt file with complete file path and utf-8 encoding
     os.startfile(os.path.join(os.path.dirname(__file__), "licenses.txt"))
 
+
 def open_help_window():
-   #open help window where a uneditable text widget shows the help text, the widget is flat and shows no border and is scrollable
+    # open help window where a uneditable text widget shows the help text, the widget is flat and shows no border and is scrollable
     # create a popup window
     popup = tk.Toplevel(root)
     popup.title("Help")
@@ -1606,29 +1621,26 @@ def open_help_window():
     popup.geometry("800x500")
     popup.resizable(False, False)
 
-
-    #read text from help.txt file with complete file path and utf-8 encoding
+    # read text from help.txt file with complete file path and utf-8 encoding
     help_text_to_show = open(os.path.join(os.path.dirname(__file__), "help.txt"), "r", encoding="utf-8").read()
 
-    #create a canvas that fills the frame
+    # create a canvas that fills the frame
     help_canvas = tk.Canvas(popup)
     help_canvas.config(bg="white")
     help_canvas.pack(fill=tk.BOTH, expand=True)
 
-    #for each line in the help.txt file, draw a text on the canvas with Sego UI font and size 10
+    # for each line in the help.txt file, draw a text on the canvas with Sego UI font and size 10
     for line in help_text_to_show.splitlines():
-        #create new text object for each line and increase the y coordinate by 20 for each line
-        help_canvas.create_text(10, 10 + 20 * help_text_to_show.splitlines().index(line), text=line, font=("Segoe UI", 12), anchor=tk.NW)
+        # create new text object for each line and increase the y coordinate by 20 for each line
+        help_canvas.create_text(10, 10 + 20 * help_text_to_show.splitlines().index(line), text=line,
+                                font=("Segoe UI", 12), anchor=tk.NW)
 
-
-    #create a scrollbar for the canvas
+    # create a scrollbar for the canvas
     scrollbar = tk.Scrollbar(help_canvas)
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    #bind scrollbar to canvas
+    # bind scrollbar to canvas
     help_canvas.config(yscrollcommand=scrollbar.set)
     scrollbar.config(command=help_canvas.yview)
-
-
 
     # create a button to close the popup
     close_button = tk.Button(help_canvas)
@@ -1639,8 +1651,6 @@ def open_help_window():
     licenses_button = tk.Button(help_canvas)
     licenses_button.config(text="Licenses", command=open_licenses_file, bg="white")
     licenses_button.pack(side=tk.BOTTOM, padx=10, pady=10)
-
-
 
 
 def load_inbox():
@@ -1658,49 +1668,19 @@ def load_note_input():
 
 # open message input box to rename a task Subject
 def rename_task(event, task):
-    # poup window with entry to rename task
-    popup = tk.Toplevel(root)
-    popup.title("Rename task")
-    popup.config(bg="white")
-    popup.geometry("700x400")
-    popup.resizable(False, False)
-
-    # create a frame to hold the widgets
-    frame = tk.Frame(popup)
-    frame.config(bg="white")
-    frame.pack(fill=tk.BOTH)
-
-    # create a label to display the task subject
-    subject_label = tk.Label(frame)
-    subject_label.config(text="Subject:", bg="white")
-    subject_label.grid(row=0, column=0, padx=10, pady=10)
-
-    # create a Text widget to display the task subject
-    subject_text = tk.Text(frame)
-    # set width based on length of task subject
-    subject_text.config(width=len(task.Subject))
-    # set height to 1
-    subject_text.config(height=2)
-    subject_text.grid(row=0, column=1, padx=10, pady=10)
-    # insert task subject into text widget
-    subject_text.insert(tk.END, task.Subject)
-
-    save_button = tk.Button(frame)
-
-    save_button.config(text="Save",
-                       command=lambda: rename_task_subject(task, subject_text.get("1.0", tk.END), popup),
-                       bg="white")
-    # if new subject is not empty
-    save_button.grid(row=1, column=1, padx=10, pady=10)
-    # create a button to cancel the task
-    cancel_button = tk.Button(frame)
-    cancel_button.config(text="Cancel", command=popup.destroy, bg="white")
-    # show save and cancel buttons at the bottom right corner
-    cancel_button.grid(row=1, column=2, padx=10, pady=10)
-    # focus on subject entry
-    subject_text.focus_set()
-    # bind enter key to save button
-    popup.bind("<Return>", lambda event: rename_task_subject(task, subject_text.get("1.0", tk.END), popup))
+    #input box to rename task
+    input_box = tk.simpledialog.askstring("Rename task", "Rename task", initialvalue=task.Subject)
+    # if input box is not empty
+    if input_box != "":
+        # set task subject to input box
+        task.Subject = input_box
+        # save the task
+        task.Save()
+        # load tasks in correct tab
+        load_tasks_in_correct_tab()
+    else:
+        # show error message
+        messagebox.showerror("Error", "Please add a new subject")
 
 
 def rename_task_subject(task, new_subject, popup):
@@ -1753,159 +1733,6 @@ def init_categories():
 init_categories()
 
 
-def save_settings(warning_limit, warning_limit_number, popup):
-    # save settings to xml file
-    # if it does not exist create a settings xml file
-    settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
-    print(settings_file)
-    if not os.path.exists(settings_file):
-        # create a settings xml file
-        # create a root element
-        root = ET.Element("settings")
-        # create a tree
-        tree = ET.ElementTree(root)
-        # write the tree to the xml file
-        tree.write(settings_file)
-    else:
-        # update settings
-        # load settings from settings.xml file
-        tree = ET.parse(settings_file)
-        # get the root element
-        root = tree.getroot()
-        # get the warning limit element
-
-        # get the warning limit number element
-        warning_limit_element = root.find("warning_limit")
-        # get the warning limit number element
-        warning_limit_number_element = root.find("warning_limit_number")
-        if warning_limit.get() == 1 and warning_limit_element is not None:
-            warning_limit_element.text = "1"
-            warning_limit_number_element.text = warning_limit_number
-        elif warning_limit.get() == 0 and warning_limit_element is not None:
-            warning_limit_element.text = "0"
-            warning_limit_number_element.text = "0"
-        else:
-            # create warning limit element
-            warning_limit_element = ET.SubElement(root, "warning_limit")
-            # create warning limit number element
-            warning_limit_number_element = ET.SubElement(root, "warning_limit_number")
-
-    # write everything to the xml file
-    # pretty print
-    # print the file to the console
-    ET.dump(root)
-    # write the tree to the xml file
-    tree.write(settings_file, encoding="utf-8", xml_declaration=True, method="xml")
-    # destroy popup
-    popup.destroy()
-
-
-# load settings function which shows a popup window where you can turn on and of the task limit setting and how many tasks is the warning limit
-def load_settings():
-    # create a popup window
-    popup = tk.Toplevel(root)
-    popup.title("Settings")
-    popup.config(bg="white")
-    popup.geometry("700x500")
-    popup.resizable(False, False)
-
-    # create a frame to hold the widgets
-    frame = tk.Frame(popup)
-    frame.config(bg="white")
-    frame.pack(fill=tk.BOTH)
-    # create a label to display the task due date
-    warning_limit_label = tk.Label(frame)
-    warning_limit_label.config(text="Warning limit:", bg="white")
-    warning_limit_label.grid(row=1, column=0, padx=10, pady=10)
-
-    warning_limit_var = tk.IntVar()
-    warning_limit_var.set(0)
-
-    # create a radio button for category
-    warning_limit_radio_button_no = tk.Radiobutton(frame)
-    warning_limit_radio_button_no.config(text="No limit", variable=warning_limit_var, value=0, bg="white")
-
-    # create a radio button for category
-    warning_limit_radio_button_yes = tk.Radiobutton(frame)
-    warning_limit_radio_button_yes.config(text="Limit", variable=warning_limit_var, value=1, bg="white")
-
-    # create an entry to get the task subject
-    warning_limit_entry = tk.Entry(frame)
-    warning_limit_entry.config(width=30)
-    # write a label right after the entry that says tasks
-    warning_limit_entry_label = tk.Label(frame)
-    warning_limit_entry_label.config(text="tasks", bg="white")
-
-    # put the radio buttons before the entry
-    warning_limit_radio_button_no.grid(row=1, column=1, padx=10, pady=10)
-    warning_limit_radio_button_yes.grid(row=1, column=2, padx=10, pady=10)
-    warning_limit_entry.grid(row=1, column=3, padx=10, pady=10)
-
-    # if the warning limit is set to no, then disable the warning limit entry
-    def enable_and_disable_warning_limit_entry():
-        if warning_limit_var.get() == 0:
-            warning_limit_entry.config(state="disabled")
-        else:
-            warning_limit_entry.config(state="normal")
-        # enable the warning limit entry if the warning limit is set to yes
-
-    warning_limit_radio_button_yes.config(command=enable_and_disable_warning_limit_entry)
-    # add command to radio button
-    warning_limit_radio_button_no.config(command=enable_and_disable_warning_limit_entry)
-
-    load_warning_limit_from_db(warning_limit_entry, warning_limit_var)
-
-    # create a button to save the task
-    save_button = tk.Button(frame)
-    save_button.config(text="Save",
-                       command=lambda: save_settings(warning_limit_var, warning_limit_entry.get(), popup),
-                       bg="white")
-
-    # create a button to cancel the task
-    cancel_button = tk.Button(frame)
-
-    cancel_button.config(text="Cancel", command=popup.destroy, bg="white")
-    # show save and cancel buttons at the bottom right corner
-    save_button.grid(row=4, column=2, padx=10, pady=10)
-    cancel_button.grid(row=4, column=3, padx=10, pady=10)
-
-
-def load_warning_limit_from_db(warning_limit_entry, warning_limit_var):
-    # load settings from settings.xml file
-    # if it does not exist create a settings xml file
-    settings_file = os.path.join(os.path.dirname(__file__), "settings.xml")
-    if not os.path.exists(settings_file):
-        # create a settings xml file
-        # create a root element
-        root = ET.Element("settings")
-        # create a tree
-        tree = ET.ElementTree(root)
-        # write the tree to the xml file
-        tree.write(settings_file)
-
-    # create a tree
-    tree = ET.parse(settings_file)
-    # get the root element
-    root = tree.getroot()
-    # get the warning limit element
-    warning_limit_element = root.find("warning_limit")
-    # get the warning limit number element
-    warning_limit_number_element = root.find("warning_limit_number")
-    # if the warning limit element is not none
-    if warning_limit_element is not None and warning_limit_element.text is not None:
-        # set the warning limit var to the value of the warning limit element
-        warning_limit_var.set(int(warning_limit_element.text))
-
-        # if the warning limit number element is not none
-        if warning_limit_number_element is not None and warning_limit_element.text == "1":
-            # set the text of the warning limit entry to the value of the warning limit number element
-            warning_limit_entry.insert(0, warning_limit_number_element.text)
-            # if the warning limit var is 0
-        else:
-            # disable the warning limit entry
-            warning_limit_entry.config(state="disabled")
-
-
 def add_menus():
     global menu_bar
     # add file menu to root
@@ -1918,8 +1745,6 @@ def add_menus():
     export_menu = tk.Menu(file_menu, tearoff=0)
     # add export menu to file menu
     file_menu.add_cascade(label="Export", menu=export_menu)
-    # add settings choice to file menu
-    file_menu.add_command(label="Settings", command=lambda: load_settings())
     # add export tasks with actual work to excel file
     export_menu.add_command(label="Time report in Excel", command=export_tasks_to_excel)
     # export tasks to sqlite database
@@ -1929,7 +1754,7 @@ def add_menus():
     # add exit to file menu
 
     # add file menu to load Inbox class
-    file_menu.add_command(label="Add several tasks", command=lambda: load_inbox())
+    file_menu.add_command(label="Add one or several tasks", command=lambda: load_inbox())
     file_menu.add_command(label="Move tasks to inbox",
                           command=lambda: move_tasks_to_inbox(load_tasks(get_canvas_to_draw_on(), draw=False)))
     file_menu.add_command(label="Exit", command=root.destroy)
