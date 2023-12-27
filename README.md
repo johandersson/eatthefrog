@@ -9,7 +9,6 @@ The program is reads and writes the tasks in Outlook, so you don't need this pro
 - Easily add several tasks at the same time. This is useful for when you use the "Inbox" in the program to quickly add tasks to your pending tasks.
 - Search for tasks
 - Task focus timer that logs time in the actual-work field in the Outlook task.
-- Set a task per day limit and get a warning if you have to much on your plate today
 
 # To do view (Inbox)
 The tasks that you need to track, but that you haven't yet prioritized are put in the To do view, it's like a backlog of stuff that needs to be done someday but that you haven't yet cateogorized with A, B or C. Add tasks here by entering some text in the input box above the tasks.
