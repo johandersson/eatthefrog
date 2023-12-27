@@ -6,6 +6,7 @@ import tkinter as tk
 import win32com.client
 from inbox import Inbox
 from tkcalendar import DateEntry
+
 import xml.etree.ElementTree as ET
 
 # set some constants for the drawing
@@ -579,6 +580,8 @@ def create_calendar_event(task, date, popup):
     calendar_event.Subject = task.Subject
     # set calendar event body to task body
     calendar_event.Body = task.Body
+    #set to full day event
+    calendar_event.AllDayEvent = True
     # compare task.StartDate to datetime.datetime(4501, 1, 1, 0, 0)
     # set date
     # convert date to fit pywin32
@@ -883,80 +886,6 @@ def reset_loading_icon(window=root):
     window.update()
 
 
-# make function that exports all tasks with actual work to an excel file but does not open excel
-def export_tasks_to_excel():
-    # create an Outlook application object
-    outlook = win32com.client.Dispatch("Outlook.Application")
-    # get the namespace object
-    namespace = outlook.GetNamespace("MAPI")
-    # get the default folder for tasks
-    tasks_folder = namespace.GetDefaultFolder(13)
-    # get all the tasks in the folder
-    tasks = tasks_folder.Items
-    # create a list to store the tasks by category
-    tasks_by_category = []
-    # loop through the tasks and check their category
-    for task in tasks:
-        # get the category of the task
-        category = task.Categories
-        if task.ActualWork:
-            # add task to list
-            tasks_by_category.append((task, category))
-            continue
-
-    # sort the list by category in ascending order
-    tasks_by_category.sort(key=lambda x: x[1])
-    # create excel file
-    excel = win32com.client.Dispatch("Excel.Application")
-    excel.Visible = False
-    # create a new workbook
-    workbook = excel.Workbooks.Add()
-    # create a new worksheet
-    worksheet = workbook.Worksheets.Add()
-    # set worksheet name to "Tasks"
-    worksheet.Name = "Tasks"
-    # set worksheet header
-    worksheet.Cells(1, 1).Value = "Subject"
-    worksheet.Cells(1, 2).Value = "Actual Work"
-    worksheet.Cells(1, 3).Value = "Total Work"
-    worksheet.Cells(1, 4).Value = "Percent Complete"
-    worksheet.Cells(1, 5).Value = "Due Date"
-    # loop through tasks and add them to excel file
-    for i, (task, category) in enumerate(tasks_by_category):
-        # get the task subject and due date
-        subject = task.Subject
-        due_date = task.DueDate
-
-        # add task to list
-        # if task is category A, B, or C, make subject cell background red, yellow, or green
-        if category == "A":
-            worksheet.Cells(i + 2, 1).Interior.ColorIndex = 3
-        elif category == "B":
-            worksheet.Cells(i + 2, 1).Interior.ColorIndex = 6
-        elif category == "C":
-            worksheet.Cells(i + 2, 1).Interior.ColorIndex = 4
-
-        # add task to excel file
-        worksheet.Cells(i + 2, 1).Value = subject
-        worksheet.Cells(i + 2, 2).Value = task.ActualWork
-        worksheet.Cells(i + 2, 3).Value = task.TotalWork
-        worksheet.Cells(i + 2, 4).Value = task.PercentComplete
-        worksheet.Cells(i + 2, 5).Value = due_date
-        # change cell width to fit text
-        worksheet.Cells(i + 2, 1).ColumnWidth = subject.__len__() + 5
-        worksheet.Cells(i + 2, 2).ColumnWidth = 15
-        worksheet.Cells(i + 2, 3).ColumnWidth = 15
-        worksheet.Cells(i + 2, 4).ColumnWidth = 15
-        worksheet.Cells(i + 2, 5).ColumnWidth = 15
-
-    # save excel file
-    # close excel file
-    # workbook.Close()
-    # open excel file
-    excel.Visible = True
-    # quit excel
-    # excel.Quit()
-
 
 def draw_tasks_with_icons(canvas_to_draw_on, task, x3, y3):
     # if task has due date and due date is in the current year or the next
@@ -1125,6 +1054,18 @@ def draw_flagged_emails(canvas_to_draw_on):
             flagged_emails.append(email)
     # sort the list by category in ascending order
     flagged_emails.sort(key=lambda x: x.FlagRequest)
+
+    if len(flagged_emails) == 0:
+        canvas_to_draw_on.create_text(350, 70, text="🐸", fill="green", font=("Segoe UI", 50), anchor=tk.CENTER)
+        canvas_to_draw_on.create_text(350, 200, text="No flagged emails", fill="green", font=("Segoe UI", 30),
+                                      anchor=tk.CENTER)
+        # small text in Segoe UI with the same color that says: If you flag an email it will show up here
+        canvas_to_draw_on.create_text(350, 250, text="If you flag an email in your Outlook inbox it will show up here",
+                                      fill="green",
+                                      font=("Segoe UI", 10),
+                                      anchor=tk.CENTER)
+        return
+
     for i, email in enumerate(flagged_emails):
         # get the email subject and due date
         subject = email.Subject
@@ -1141,17 +1082,6 @@ def draw_flagged_emails(canvas_to_draw_on):
         canvas_to_draw_on.tag_bind("all", "<Double-Button-1>", lambda event, email=email: email.Display())
         # when clicking the flag open a popup menu with one option to remove the flag
         canvas_to_draw_on.tag_bind("all", "<Button-3>", lambda event, email=email: add_popup_menu_to_flag(event, email))
-    # if there are no flagged emails, draw a frog smiley saying "No flagged emails"
-
-    # if there are no flagged emails, draw a frog smiley saying "No flagged emails"
-    if len(flagged_emails) == 0:
-        canvas_to_draw_on.create_text(350, 70, text="🐸", fill="green", font=("Segoe UI", 50), anchor=tk.CENTER)
-        canvas_to_draw_on.create_text(350, 200, text="No flagged emails", fill="green", font=("Segoe UI", 30),
-                                      anchor=tk.CENTER)
-        #small text in Segoe UI with the same color that says: If you flag an email it will show up here
-        canvas_to_draw_on.create_text(350, 250, text="If you flag an email in your Outlook inbox it will show up here", fill="green",
-                                      font=("Segoe UI", 10),
-                                      anchor=tk.CENTER)
 
     reset_loading_icon()
 
@@ -1555,8 +1485,8 @@ def generate_html_file_to_print():
         # show error message
         tk.messagebox.showerror("Error", "Could not open file")
 
-    # write the html file header
-    html_file.write("<html><head><title>Finished Tasks</title></head><body>")
+    # write the html file header with Todo list for today and today's date as title
+    html_file.write("<html><head><title>Todo list</title></head><body>")
     # load nice google font
     html_file.write("<link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>")
     # make the font of the html file Roboto
@@ -1756,16 +1686,7 @@ def add_menus():
     file_menu = tk.Menu(menu_bar, tearoff=0)
     # add file menu to menu bar
     menu_bar.add_cascade(label="File", menu=file_menu)
-    # add sub menu for exporting stuff
-    export_menu = tk.Menu(file_menu, tearoff=0)
-    # add export menu to file menu
-    file_menu.add_cascade(label="Export", menu=export_menu)
-    # add export tasks with actual work to excel file
-    export_menu.add_command(label="Time report in Excel", command=export_tasks_to_excel)
-    # export tasks to sqlite database
 
-    # add separator
-    file_menu.add_separator()
     # add exit to file menu
 
     # add file menu to load Inbox class
