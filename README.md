@@ -6,7 +6,7 @@ The intention with the program and the method is that you should create a todo l
 The program is reads and writes the tasks in Outlook, so you don't need this program to work according to the A-B-C method, but the program is thought to simplify the process.
 
 # Features
-- Easily add several tasks at the same time. This is useful for when you use the "Inbox" in the program to quickly add tasks to your pending tasks.
+- Easily add several tasks at the same time. This is useful for when you use the To do view in the program as an "Inbox" to quickly add tasks to your pending tasks. 
 - Search for tasks
 - Task focus timer that logs time in the actual-work field in the Outlook task.
 
