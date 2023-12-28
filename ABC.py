@@ -105,6 +105,28 @@ def create_new_task(task_subject):
     # set task start date to today
     return new_task
 
+#function fo find all tasks with due date today
+def find_tasks_with_due_date_today_and_set_to_a():
+    # create an Outlook application object
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    # get the namespace object
+    namespace = outlook.GetNamespace("MAPI")
+    # get the default folder for tasks
+    tasks_folder = namespace.GetDefaultFolder(13)
+    # get all the tasks in the folder
+    tasks = tasks_folder.Items
+    # loop through all the tasks and check their subject or body
+    # new list to hold tasks with due date today
+    tasks_with_due_date_today = []
+    for task_item in tasks:
+        # if task has due date today
+        #convert task due date to a comparable format
+        task_due_date = task_item.DueDate.strftime("%d/%m/%Y")
+        today = datetime.datetime.today().strftime("%d/%m/%Y")
+        if task_due_date == today:
+            #if task has no category, set it to "A"
+            if task_item.Categories == "":
+                task_item.Categories = "A"
 
 def create_new_task_from_entry(event, task_subject):
     # if task subject is not empty
@@ -671,6 +693,55 @@ def change_priority_to_high(task):
     task.Save()
     load_tasks_in_correct_tab()
 
+def set_task_due_date(task, date, popup):
+    # set task due date to date
+    # convert date to fit pywin32
+    outlook_date = date.strftime("%m/%d/%Y")
+    task.DueDate = outlook_date
+    task.Save()
+    popup.destroy()
+    load_tasks_in_correct_tab()
+
+def add_due_date(event, task):
+    # open a popup window with a date picker
+    popup = tk.Toplevel(root)
+    popup.title("Choose due date")
+    popup.config(bg="white")
+    popup.geometry("600x400")
+    popup.resizable(False, False)
+
+    # create a frame to hold the widgets
+    frame = tk.Frame(popup)
+    frame.config(bg="white")
+    frame.pack(fill=tk.BOTH)
+    date_picker = DateEntry(frame)
+    date_picker.config(date_pattern="dd/mm/yyyy")
+    date_picker.pack()
+    # save picked date in variable
+
+    # create a button to create calendar event
+    add_due_date_button = tk.Button(frame)
+    add_due_date_button.config(text="Add due date", bg="white",
+                               command=lambda: set_task_due_date(task, date_picker.get_date(), popup))
+    add_due_date_button.pack()
+    color = get_color_code_from_category(task.Categories)
+    canvas = tk.Canvas(frame)
+    # fill frame with canvas
+    # put canvas on top of frame above the labels and buttons and date picker
+    canvas.pack(fill=tk.BOTH, expand=True)
+
+    # draw a quadratic shape next to the label with the color of the task category
+    canvas.create_rectangle(0, 0, 50, 50, fill=color, outline=color)
+    # pack the canvas so that it fills the frame
+
+    # draw subject next to color
+    canvas.create_text(60, 25, text=task.Subject, anchor=tk.W)
+    # if task has a Body draw that under the subject, but limit it to 50 characters and add ... at the end if it is
+    # longer
+    if task.Body != "":
+        canvas.create_text(60, 50, text=task.Body[:50] + "...", anchor=tk.W)
+    # make canvas white
+    canvas.config(bg="white")
 
 def action_menu_popup(event, task_to_change):
     # highlight_text(event, canvas_x, task_text)
@@ -721,6 +792,8 @@ def action_menu_popup(event, task_to_change):
         popup_menu.add_command(label="Move to To do", command=lambda: move_single_task_to_inbox(task_to_change))
     else:
         popup_menu.add_cascade(label="Change Outlook priority", menu=priority_menu)
+        #add choice to add due date
+        popup_menu.add_command(label="Add due date", command=lambda: add_due_date(event, task_to_change))
     # add menu to start a timer on the task
     popup_menu.add_command(label="Start timer", command=lambda: open_timer_window(event, task_to_change))
 
@@ -1064,6 +1137,7 @@ def draw_flagged_emails(canvas_to_draw_on):
                                       fill="green",
                                       font=("Segoe UI", 10),
                                       anchor=tk.CENTER)
+        reset_loading_icon()
         return
 
     for i, email in enumerate(flagged_emails):
@@ -1119,25 +1193,30 @@ def get_canvas_to_draw_on():
 def move_tasks_to_inbox(tasks_by_category):
     # create popup window
     popup = tk.Toplevel(root)
-    popup.title("Move tasks to inbox")
+    popup.title("Move tasks to Todo")
     popup.config(bg="white")
     popup.geometry("600x400")
     popup.resizable(False, False)
+    #set font of popup window to be Segoe UI
+
+
 
     # create a frame to hold the widgets
     frame = tk.Frame(popup)
     frame.config(bg="white")
     # make frame as big as the window
     frame.pack(fill=tk.BOTH, expand=True)
-    # label that says "Select one or multiple tasks to move to inbox"
     label = tk.Label(frame)
-    label.config(text="Select one or multiple tasks to move to inbox", bg="white", font=("Arial", 12))
+    label.config(text="Select one or multiple tasks to move to To do by clicking them in the list", bg="white")
     label.pack()
+
     # create a listbox to hold the tasks
     listbox = tk.Listbox(frame, selectmode=tk.MULTIPLE)
     listbox.config(bg="white", fg="black")
     # make listbox as big as the window except for the buttons under it
     listbox.pack(fill=tk.BOTH, expand=True)
+    #set font of listbox to be Segoe UI
+    listbox.config(font=("Segoe UI", 12))
 
     # create a scrollbar for the listbox
     scrollbar = tk.Scrollbar(listbox)
@@ -1153,7 +1232,7 @@ def move_tasks_to_inbox(tasks_by_category):
 
     # create a button to move tasks to inbox
     move_to_inbox_button = tk.Button(frame)
-    move_to_inbox_button.config(text="Move tasks to inbox", bg="white",
+    move_to_inbox_button.config(text="Move tasks to To do", bg="white",
                                 command=lambda: move_tasks_to_inbox_command(listbox, popup))
     move_to_inbox_button.pack()
 
@@ -1192,7 +1271,7 @@ def move_tasks_to_inbox_command(listbox, popup):
     popup.destroy()
     # reload tasks
     load_tasks_in_correct_tab()
-    messagebox.showinfo("Tasks moved to inbox", str(len(selected_tasks)) + " tasks were moved to inbox")
+    messagebox.showinfo("Tasks moved to To do", str(len(selected_tasks)) + " tasks were moved to To do")
 
 
 def move_single_task_to_inbox(task):
@@ -1200,8 +1279,8 @@ def move_single_task_to_inbox(task):
     task.Save()
     load_tasks_in_correct_tab()
     # Message box with title "Task moved to inbox" and text "Task with subject x was moved to To do"
-    messagebox.showinfo("Task moved to inbox",
-                        "Task with subject:\n" + "'" + task.Subject + "'" + "\nwas moved to inbox")
+    messagebox.showinfo("Task moved to To do",
+                        "Task with subject:\n" + "'" + task.Subject + "'" + "\nwas moved to To do")
 
 
 # create a root window for the GUI
@@ -1691,7 +1770,7 @@ def add_menus():
 
     # add file menu to load Inbox class
     file_menu.add_command(label="Add one or several tasks", command=lambda: load_inbox())
-    file_menu.add_command(label="Move tasks to inbox",
+    file_menu.add_command(label="Move tasks to To do",
                           command=lambda: move_tasks_to_inbox(load_tasks(get_canvas_to_draw_on(), draw=False)))
     file_menu.add_command(label="Exit", command=root.destroy)
     # add choice to move tasks to inbox
@@ -1726,5 +1805,6 @@ root.bind("i", lambda event: load_inbox())
 
 # add file menu to root
 root.config(menu=menu_bar)
+find_tasks_with_due_date_today_and_set_to_a()
 load_tasks_in_correct_tab()
 root.mainloop()
