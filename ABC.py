@@ -1800,8 +1800,6 @@ def add_menus():
 
 add_menus()
 
-# bind i to inbox
-root.bind("i", lambda event: load_inbox())
 
 # add file menu to root
 root.config(menu=menu_bar)
