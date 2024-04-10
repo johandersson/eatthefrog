@@ -6,8 +6,9 @@ The program is reads and writes the tasks in Outlook, so you don't need this pro
 # Features
 - Easily add several tasks at the same time. This is useful for when you use the To do view in the program as an "Inbox" to quickly add tasks to your pending tasks. 
 - Search for tasks
-- Task focus timer that logs time in the actual-work field in the Outlook task.
-
+- Task focus timer
+- Print your daily A-B-C todo list 
+  
 # Today view
 In this view the tasks that have been categorized A, B, or C is shown. The intention with the program and the method is that you should create a todo list everyday with the most important tasks to do that day. So A are the ones that really has to be done, B are the ones that could be done but that mustn't, C are does not need to be done now, but it's good if they are done.
 
