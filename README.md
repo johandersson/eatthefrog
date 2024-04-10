@@ -1,14 +1,17 @@
 # Eat the frog (A-B-C) for Windows
 Task manager for Windows integrated with Outlook tasks and calendar based on ABC priority of tasks (A with color code red, B yellow, C green). 
 
-The intention with the program and the method is that you should create a todo list everyday with the most important tasks to do that day. So A are the ones that really has to be done, B are the ones that could be done but that mustn't, C are does not need to be done now, but it's good if they are done.
-
 The program is reads and writes the tasks in Outlook, so you don't need this program to work according to the A-B-C method, but the program is thought to simplify the process.
 
 # Features
 - Easily add several tasks at the same time. This is useful for when you use the To do view in the program as an "Inbox" to quickly add tasks to your pending tasks. 
 - Search for tasks
 - Task focus timer that logs time in the actual-work field in the Outlook task.
+
+# Today view
+In this view the tasks that have been categorized A, B, or C is shown. The intention with the program and the method is that you should create a todo list everyday with the most important tasks to do that day. So A are the ones that really has to be done, B are the ones that could be done but that mustn't, C are does not need to be done now, but it's good if they are done.
+
+If you don't finish them the current day, the will stay in the today view until you move them to the Inbox view.
 
 # To do view (Inbox)
 The tasks that you need to track, but that you haven't yet prioritized are put in the To do view, it's like a backlog of stuff that needs to be done someday but that you haven't yet cateogorized with A, B or C. Add tasks here by entering some text in the input box above the tasks.
