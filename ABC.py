@@ -105,7 +105,8 @@ def create_new_task(task_subject):
     # set task start date to today
     return new_task
 
-#function fo find all tasks with due date today
+
+# function fo find all tasks with due date today
 def find_tasks_with_due_date_today_and_set_to_a():
     # create an Outlook application object
     outlook = win32com.client.Dispatch("Outlook.Application")
@@ -120,13 +121,14 @@ def find_tasks_with_due_date_today_and_set_to_a():
     tasks_with_due_date_today = []
     for task_item in tasks:
         # if task has due date today
-        #convert task due date to a comparable format
+        # convert task due date to a comparable format
         task_due_date = task_item.DueDate.strftime("%d/%m/%Y")
         today = datetime.datetime.today().strftime("%d/%m/%Y")
         if task_due_date == today:
-            #if task has no category, set it to "A"
+            # if task has no category, set it to "A"
             if task_item.Categories == "":
                 task_item.Categories = "A"
+
 
 def create_new_task_from_entry(event, task_subject):
     # if task subject is not empty
@@ -602,7 +604,7 @@ def create_calendar_event(task, date, popup):
     calendar_event.Subject = task.Subject
     # set calendar event body to task body
     calendar_event.Body = task.Body
-    #set to full day event
+    # set to full day event
     calendar_event.AllDayEvent = True
     # compare task.StartDate to datetime.datetime(4501, 1, 1, 0, 0)
     # set date
@@ -693,6 +695,7 @@ def change_priority_to_high(task):
     task.Save()
     load_tasks_in_correct_tab()
 
+
 def set_task_due_date(task, date, popup):
     # set task due date to date
     # convert date to fit pywin32
@@ -701,6 +704,7 @@ def set_task_due_date(task, date, popup):
     task.Save()
     popup.destroy()
     load_tasks_in_correct_tab()
+
 
 def add_due_date(event, task):
     # open a popup window with a date picker
@@ -742,6 +746,7 @@ def add_due_date(event, task):
         canvas.create_text(60, 50, text=task.Body[:50] + "...", anchor=tk.W)
     # make canvas white
     canvas.config(bg="white")
+
 
 def action_menu_popup(event, task_to_change):
     # highlight_text(event, canvas_x, task_text)
@@ -792,7 +797,7 @@ def action_menu_popup(event, task_to_change):
         popup_menu.add_command(label="Move to To do", command=lambda: move_single_task_to_inbox(task_to_change))
     else:
         popup_menu.add_cascade(label="Change Outlook priority", menu=priority_menu)
-        #add choice to add due date
+        # add choice to add due date
         popup_menu.add_command(label="Add due date", command=lambda: add_due_date(event, task_to_change))
     # add menu to start a timer on the task
     popup_menu.add_command(label="Start timer", command=lambda: open_timer_window(event, task_to_change))
@@ -823,17 +828,20 @@ def draw_tasks(canvas_to_draw_on):
         selected_tab = tab_control.tab(tab_control.select(), "text")
         if selected_tab == "Done today":
             canvas_to_draw_on.create_text(350, 70, text="🐸", fill="green", font=("Segoe UI", 50), anchor=tk.CENTER)
-            canvas_to_draw_on.create_text(350, 200, text="No tasks marked done today", fill="green", font=("Segoe UI", 30),
+            canvas_to_draw_on.create_text(350, 200, text="No tasks marked done today", fill="green",
+                                          font=("Segoe UI", 30),
                                           anchor=tk.CENTER)
             # small text in Segoe UI with the same color that says: If you flag an email it will show up here
-            canvas_to_draw_on.create_text(350, 250, text="Yet. Mark a task done by clicking the colored box left to the subject.",
+            canvas_to_draw_on.create_text(350, 250,
+                                          text="Yet. Mark a task done by clicking the colored box left to the subject.",
                                           fill="green",
                                           font=("Segoe UI", 10),
                                           anchor=tk.CENTER)
             reset_loading_icon()
             return
         canvas_to_draw_on.create_text(350, 200, text="✓", fill="green", font=("Arial", 100), anchor=tk.CENTER)
-        if current_filter is None or current_filter == "" or tab_control.tab(tab_control.select(), "text") != "Done today":
+        if current_filter is None or current_filter == "" or tab_control.tab(tab_control.select(),
+                                                                             "text") != "Done today":
             canvas_to_draw_on.create_text(350, 300, text="No tasks", fill="green", font=("Arial", 30), anchor=tk.CENTER)
         else:
 
@@ -873,11 +881,14 @@ def draw_tasks(canvas_to_draw_on):
             canvas_to_draw_on.create_text(x3, y3 + 12, text="Category:" + category, fill="black", anchor=tk.W,
                                           font=("Arial", 8))
 
-        # draw a box on the left side of the task with the color of the category, without border
-        check_box = canvas_to_draw_on.create_rectangle(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius,
-                                                       y1 + dot_radius,
-                                                       fill=color,
-                                                       outline="")
+        # draw a box on the left side of the task if it is the today view otherwhise a circle
+        if tab_control.tab(tab_control.select(), "text") == "Today" or tab_control.tab(tab_control.select(),
+                                                                                       "text") == "Done today":
+            check_box = canvas_to_draw_on.create_rectangle(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius,
+                                                           y1 + dot_radius, fill=color, outline=color)
+        else:
+            check_box = canvas_to_draw_on.create_oval(x1 - dot_radius, y1 - dot_radius, x1 + dot_radius,
+                                                      y1 + dot_radius, fill=color, outline=color)
 
         # set checkbox cursor to hand but only when hovering over the checkbox
         canvas_to_draw_on.tag_bind(check_box, "<Enter>", lambda event: canvas_to_draw_on.config(cursor="hand2"))
@@ -893,13 +904,7 @@ def draw_tasks(canvas_to_draw_on):
         task_text = canvas_to_draw_on.create_text(x3, y3, text=task_info, fill="black", anchor=tk.W,
                                                   font=("Segoe UI", 12))
 
-        # when hovering over task text, call highlight_text function with canvas and task_text as arguments
-        # canvas_to_draw_on.tag_bind(task_text, "<Enter>",
-        # lambda event, canvas=canvas_to_draw_on, task_text=task_text: highlight_text(event,
-        # canvas,
-        # task_text))
 
-        # when left clicking the task text open a popup menu
         canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: action_menu_popup(event, task))
 
         # when mouse wheel clicking the task text open a timer window
@@ -957,7 +962,6 @@ def loading_icon(window=root):
 def reset_loading_icon(window=root):
     window.config(cursor="")
     window.update()
-
 
 
 def draw_tasks_with_icons(canvas_to_draw_on, task, x3, y3):
@@ -1063,17 +1067,22 @@ def load_tasks(canvas_to_draw_on, show_tasks_finished_today=False, show_all_task
         draw_tasks(canvas_to_draw_on)
 
     return tasks_by_category
+
+
 def mark_email_as_completed(email):
-    #mark email as completed
+    # mark email as completed
     email.FlagStatus = 1
     email.Save()
     draw_flagged_emails(get_canvas_to_draw_on())
 
+
 def unflag_email(email):
-    #unflag email
+    # unflag email
     email.FlagStatus = 0
     email.Save()
     draw_flagged_emails(get_canvas_to_draw_on())
+
+
 def create_task_from_email(email):
     # create a new task
     # create an Outlook application object
@@ -1087,16 +1096,19 @@ def create_task_from_email(email):
     task_from_email.Categories = email.Categories
     # save task
     task_from_email.Save()
-    #ask user if he also wants to remove the flag from the email
-    if messagebox.askyesno("Remove flag from email?", "A task was created in To do. Do you also want to remove the flag from the email?"):
+    # ask user if he also wants to remove the flag from the email
+    if messagebox.askyesno("Remove flag from email?",
+                           "A task was created in To do. Do you also want to remove the flag from the email?"):
         unflag_email(email)
     load_tasks_in_correct_tab()
 
+
 def uncomplete(email):
-    #mark email as not completed
+    # mark email as not completed
     email.FlagStatus = 0
     email.Save()
     draw_flagged_emails(get_canvas_to_draw_on())
+
 
 def add_popup_menu_to_flag(event, email):
     popup_menu = tk.Menu(root, tearoff=0)
@@ -1110,7 +1122,7 @@ def add_popup_menu_to_flag(event, email):
 
 def draw_flagged_emails(canvas_to_draw_on):
     loading_icon()
-    #clear
+    # clear
     canvas_to_draw_on.delete("all")
     # find emails that have been flagged
     # create an Outlook application object
@@ -1122,9 +1134,9 @@ def draw_flagged_emails(canvas_to_draw_on):
     # get all the emails in the folder
     emails = emails_folder.Items
     flagged_emails = []
-    for email in emails:
-        if email.FlagRequest != "":
-            flagged_emails.append(email)
+    for flagged_email in emails:
+        if flagged_email.FlagRequest != "":
+            flagged_emails.append(flagged_email)
     # sort the list by category in ascending order
     flagged_emails.sort(key=lambda x: x.FlagRequest)
 
@@ -1140,22 +1152,34 @@ def draw_flagged_emails(canvas_to_draw_on):
         reset_loading_icon()
         return
 
-    for i, email in enumerate(flagged_emails):
+    for i, flagged_email in enumerate(flagged_emails):
         # get the email subject and due date
-        subject = email.Subject
+        subject = flagged_email.Subject
         # draw a flag with the color of the flagged email and then the subject and bind it to open the email in outlook and left align the text
-        canvas_to_draw_on.create_text(50, (i + 1) * line_height, text="🚩", fill="red", font=("Segoe UI", 12),
+        flag = canvas_to_draw_on.create_text(50, (i + 1) * line_height, text="🚩", fill="red", font=("Segoe UI", 12),
                                       anchor=tk.W)
-        canvas_to_draw_on.create_text(70, (i + 1) * line_height, text=subject, fill="black", font=("Segoe UI", 12),
+        subject_text = canvas_to_draw_on.create_text(70, (i + 1) * line_height, text=subject, fill="black", font=("Segoe UI", 12),
                                       anchor=tk.W)
-        #if email is completed draw a check mark next to the flag
-        if email.FlagStatus == 1:
+        # if email is completed draw a check mark next to the flag
+        if flagged_email.FlagStatus == 1:
             canvas_to_draw_on.create_text(30, (i + 1) * line_height, text="✓", fill="green", font=("Segoe UI", 12),
                                           anchor=tk.W)
-        # when double clicking the dot open the task in outlook
-        canvas_to_draw_on.tag_bind("all", "<Double-Button-1>", lambda event, email=email: email.Display())
-        # when clicking the flag open a popup menu with one option to remove the flag
-        canvas_to_draw_on.tag_bind("all", "<Button-3>", lambda event, email=email: add_popup_menu_to_flag(event, email))
+
+        #make variable that holds both flag and text for bind to clicking
+        # when double clicking the dot open the task in outlook avoid late binding
+
+
+        #make variable that holds both flag and text for bind to clicking
+        # when double clicking the dot open the task in outlook avoid late binding
+        canvas_to_draw_on.tag_bind(subject_text, "<Double-Button-1>", lambda event, email=flagged_email: email.Display())
+        # when right clicking the dot open a popup menu
+        canvas_to_draw_on.tag_bind(subject_text, "<Button-3>",
+                                    lambda event, email=flagged_email: add_popup_menu_to_flag(event, email))
+        canvas_to_draw_on.tag_bind(flag, "<Double-Button-1>",
+                                   lambda event, email=flagged_email: email.Display())
+        # when right clicking the dot open a popup menu
+        canvas_to_draw_on.tag_bind(flag, "<Button-3>",
+                                   lambda event, email=flagged_email: add_popup_menu_to_flag(event, email))
 
     reset_loading_icon()
 
@@ -1197,9 +1221,7 @@ def move_tasks_to_inbox(tasks_by_category):
     popup.config(bg="white")
     popup.geometry("600x400")
     popup.resizable(False, False)
-    #set font of popup window to be Segoe UI
-
-
+    # set font of popup window to be Segoe UI
 
     # create a frame to hold the widgets
     frame = tk.Frame(popup)
@@ -1215,7 +1237,7 @@ def move_tasks_to_inbox(tasks_by_category):
     listbox.config(bg="white", fg="black")
     # make listbox as big as the window except for the buttons under it
     listbox.pack(fill=tk.BOTH, expand=True)
-    #set font of listbox to be Segoe UI
+    # set font of listbox to be Segoe UI
     listbox.config(font=("Segoe UI", 12))
 
     # create a scrollbar for the listbox
@@ -1288,27 +1310,34 @@ def move_single_task_to_inbox(task):
 
 def mark_done(event, task, check_mark=None):
     canvas_to_draw_on = get_canvas_to_draw_on()
-    if task.Status == 2:
-        task.Status = 1
-    else:
-        task.Status = 2
+    # if canvas to draw on is the todo view
+    if canvas_to_draw_on != inbox_canvas:
+        if task.Status == 2:
+            task.Status = 1
+        else:
+            task.Status = 2
 
-    item = canvas_to_draw_on.find_withtag("current")
-    # frame the item with a black border
-    # if task is not already done
-    if task.Status == 2:
-        # draw a small green check mark a little bit bigger then the item, inside the item
-        canvas_to_draw_on.create_text(canvas_to_draw_on.bbox(item)[0] + 1, canvas_to_draw_on.bbox(item)[1] + 6,
-                                      text="✓", fill="light green",
-                                      font=("Arial", 18), anchor=tk.W)
-    else:
-        # delete the check mark from item
-        # remove check_mark
-        canvas_to_draw_on.delete(check_mark)
+        item = canvas_to_draw_on.find_withtag("current")
+        # frame the item with a black border
+        # if task is not already done
+        if task.Status == 2:
+            # draw a small green check mark a little bit bigger then the item, inside the item
+            canvas_to_draw_on.create_text(canvas_to_draw_on.bbox(item)[0] + 1, canvas_to_draw_on.bbox(item)[1] + 6,
+                                          text="✓", fill="light green",
+                                          font=("Arial", 18), anchor=tk.W)
+        else:
+            # delete the check mark from item
+            # remove check_mark
+            canvas_to_draw_on.delete(check_mark)
 
-    task.Save()
-    # call load_tasks_in_correct_tab function after 300 milliseconds
-    canvas_to_draw_on.after(3000, load_tasks_in_correct_tab)
+        task.Save()
+        # call load_tasks_in_correct_tab function after 300 milliseconds
+        canvas_to_draw_on.after(3000, load_tasks_in_correct_tab)
+    else:
+        # move task to today with category A
+        task.Categories = "A"
+        task.Save()
+        load_tasks_in_correct_tab()
 
 
 def save_task(subject, category, due_date=None, create_calendar_event=False, date_var=None, popup=None):
@@ -1530,8 +1559,6 @@ def switch_to_tab(tab_index):
     load_tasks_in_correct_tab()
 
 
-
-
 canvas = get_canvas_to_draw_on()
 root.bind("<Control-r>", lambda event: load_tasks_in_correct_tab())
 # bind ctrl+´m to move tasks to inbox
@@ -1544,8 +1571,9 @@ root.bind("<Control-a>", lambda event: load_tasks(canvas_to_draw_on=today_canvas
 root.bind("<Control-b>", lambda event: load_tasks(canvas_to_draw_on=today_canvas, show_only_this_category="B"))
 # bind Control+C to only show C tasks on today tab
 root.bind("<Control-c>", lambda event: load_tasks(canvas_to_draw_on=today_canvas, show_only_this_category="C"))
-#bind Control+N to load_inbox
+# bind Control+N to load_inbox
 root.bind("<Control-n>", lambda event: load_inbox())
+
 
 def generate_html_file_to_print():
     # while html file is being generated show a blinking loading text on root window
@@ -1692,7 +1720,7 @@ def load_note_input():
 
 # open message input box to rename a task Subject
 def rename_task(event, task):
-    #input box to rename task
+    # input box to rename task
     input_box = tk.simpledialog.askstring("Rename task", "Rename task", initialvalue=task.Subject)
     # if input box is not empty
     if input_box != "":
@@ -1799,7 +1827,6 @@ def add_menus():
 
 
 add_menus()
-
 
 # add file menu to root
 root.config(menu=menu_bar)
