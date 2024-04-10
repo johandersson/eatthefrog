@@ -1112,6 +1112,11 @@ def uncomplete(email):
 
 def add_popup_menu_to_flag(event, email):
     popup_menu = tk.Menu(root, tearoff=0)
+    popup_menu.add_command(label=email.Subject, font=("Arial", 9, "bold"))
+    # disable the first item so that it can't be clicked
+    popup_menu.entryconfig(0, state=tk.DISABLED)
+    # add a separator
+    popup_menu.add_separator()
     popup_menu.add_command(label="Unflag email", command=lambda: unflag_email(email))
     popup_menu.add_command(label="Mark as completed", command=lambda: mark_email_as_completed(email))
     # add popup menu item to create task from Email subject
