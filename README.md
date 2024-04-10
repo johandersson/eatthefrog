@@ -16,6 +16,9 @@ The tasks that you need to track, but that you haven't yet prioritized are put i
 # Done today view
 In this view you can see tasks that you have marked done today. If you want to view tasks that where marked done in the past, you can go to Search.
 
+# Flagged emails
+This view contains a list of emails that you have flagged in your Outlook inbox. You can create tasks based on them, unflag them, and mark them as done.
+
 # Due dates
 If a task from the Todo view has a due date when the program is loading, the task will be automatically moved to the Today view with category "A".
 
