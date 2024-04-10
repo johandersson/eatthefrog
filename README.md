@@ -9,6 +9,7 @@ The program is reads and writes the tasks in Outlook, so you don't need this pro
 - Task focus timer
 - Print your daily A-B-C todo list
 - Create calendar event based on task with A-B-C color coding
+- Split big tasks into several tasks (sub tasks are not supported)
   
 # Today view
 In this view the tasks that have been categorized A, B, or C is shown. The intention with the program and the method is that you should create a todo list everyday with the most important tasks to do that day. So A are the ones that really has to be done, B are the ones that could be done but that mustn't, C are does not need to be done now, but it's good if they are done.
