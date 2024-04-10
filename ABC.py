@@ -130,7 +130,7 @@ def find_tasks_with_due_date_today_and_set_to_a():
                 task_item.Categories = "A"
 
 
-def create_new_task_from_entry(event, task_subject):
+def create_new_task_from_entry(task_subject):
     # if task subject is not empty
     if task_subject != "":
         # create a new task
@@ -162,7 +162,7 @@ def add_inbox_input_field():
     # make capture text placeholder gray
     capture_text.config(fg="gray")
 
-    capture_text.bind("<Return>", lambda event: create_new_task_from_entry(event, capture_text.get()))
+    capture_text.bind("<Return>", lambda: create_new_task_from_entry(capture_text.get()))
 
 
 add_inbox_input_field()
@@ -748,6 +748,93 @@ def add_due_date(event, task):
     canvas.config(bg="white")
 
 
+def add_new_task_to_listbox(new_task_subject_entry, added_tasks_listbox):
+    # add new task to listbox
+    # open input box that asks user for subject of new task
+    new_task_subject = simpledialog.askstring("New task", "Enter the subject of the new task")
+    added_tasks_listbox.insert(tk.END, new_task_subject)
+    # clear the entry
+    new_task_subject_entry.delete(0, tk.END)
+
+
+def save_tasks(added_tasks_listbox, task, popup):
+    # save all the tasks that were added to the listbox
+    # for entry in added_tasks_listbox
+    for task_subject in added_tasks_listbox.get(0, tk.END):
+        # create a completely new task
+        new_task = task.Copy()
+        # copy categories
+        new_task.Categories = task.Categories
+        new_task.Subject = task_subject
+        new_task.Save()
+
+    # ask if the user wants to delete the original task
+    if messagebox.askyesno("Delete original task?",
+                           "Do you want to delete the original task with subject:\n'" + task.Subject + "'"):
+        task.Delete()
+    # close the popup
+    popup.destroy()
+    # load tasks in the correct tab
+    load_tasks_in_correct_tab()
+
+
+def split_task(task):
+    # open a popup window with a text box to enter the new task subject
+    popup = tk.Toplevel(root)
+    popup.title("Split task")
+    popup.config(bg="white")
+    popup.geometry("600x600")
+    popup.resizable(False, False)
+
+    # create a frame to hold the widgets
+    frame = tk.Frame(popup)
+    frame.config(bg="white")
+    frame.pack(fill=tk.BOTH)
+
+    color = get_color_code_from_category(task.Categories)
+    canvas = tk.Canvas(frame)
+    # fill frame with canvas
+    # put canvas on top of frame above the labels and buttons and date picker
+    canvas.pack(fill=tk.BOTH, expand=True)
+
+    # draw a quadratic shape next to the label with the color of the task category
+    canvas.create_rectangle(0, 0, 50, 50, fill=color, outline=color)
+    # pack the canvas so that it fills the frame
+
+    # draw subject next to color
+    canvas.create_text(60, 25, text=task.Subject, anchor=tk.W)
+    # if task has a Body draw that under the subject, but limit it to 50 characters and add ... at the end if it is
+    # longer
+    if task.Body != "":
+        canvas.create_text(60, 50, text=task.Body[:50] + "...", anchor=tk.W)
+    # make canvas white
+    canvas.config(bg="white")
+
+    new_task_subject_label = tk.Label(frame)
+    # create a text box to enter the new task subject
+    new_task_subject_entry = tk.Entry(frame)
+    new_task_subject_label.config(text="New tasks", bg="white")
+    new_task_subject_label.pack()
+    # create a listbox to display the added tasks
+    added_tasks_listbox = tk.Listbox(frame, width=50, height=10)
+    added_tasks_listbox.pack()
+
+    # create a button to create new task
+    add_tasks_to_listbox = tk.Button(frame)
+    # when clicking the button create a new task with the subject from the entry and add it to the listbox
+    add_tasks_to_listbox.config(text="Add task", bg="white",
+                                command=lambda: add_new_task_to_listbox(new_task_subject_entry,
+                                                                        added_tasks_listbox))
+
+    add_tasks_to_listbox.pack()
+    # next to the add tasks button add a button save all the tasks that were added to the listbox
+    save_tasks_button = tk.Button(frame)
+    # when clicking the button save all the tasks that were added to the listbox
+    save_tasks_button.config(text="Save tasks", bg="white",
+                             command=lambda: save_tasks(added_tasks_listbox, task, popup))
+    save_tasks_button.pack()
+
+
 def action_menu_popup(event, task_to_change):
     # highlight_text(event, canvas_x, task_text)
     # create popup menu
@@ -804,6 +891,9 @@ def action_menu_popup(event, task_to_change):
 
     # add menu to open task in outlook
     popup_menu.add_command(label="Open task in Outlook", command=lambda: task_to_change.Display())
+
+    # add menu to split task into multiple tasks
+    popup_menu.add_command(label="Split task", command=lambda: split_task(task_to_change))
 
     # display popup menu
     popup_menu.tk_popup(event.x_root, event.y_root)
@@ -903,7 +993,6 @@ def draw_tasks(canvas_to_draw_on):
         # draw a text with the task information on the canvas with black color and Segoe UI font size 12 if it is installed otherwise Arial
         task_text = canvas_to_draw_on.create_text(x3, y3, text=task_info, fill="black", anchor=tk.W,
                                                   font=("Segoe UI", 12))
-
 
         canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: action_menu_popup(event, task))
 
@@ -1162,24 +1251,25 @@ def draw_flagged_emails(canvas_to_draw_on):
         subject = flagged_email.Subject
         # draw a flag with the color of the flagged email and then the subject and bind it to open the email in outlook and left align the text
         flag = canvas_to_draw_on.create_text(50, (i + 1) * line_height, text="🚩", fill="red", font=("Segoe UI", 12),
-                                      anchor=tk.W)
-        subject_text = canvas_to_draw_on.create_text(70, (i + 1) * line_height, text=subject, fill="black", font=("Segoe UI", 12),
-                                      anchor=tk.W)
+                                             anchor=tk.W)
+        subject_text = canvas_to_draw_on.create_text(70, (i + 1) * line_height, text=subject, fill="black",
+                                                     font=("Segoe UI", 12),
+                                                     anchor=tk.W)
         # if email is completed draw a check mark next to the flag
         if flagged_email.FlagStatus == 1:
             canvas_to_draw_on.create_text(30, (i + 1) * line_height, text="✓", fill="green", font=("Segoe UI", 12),
                                           anchor=tk.W)
 
-        #make variable that holds both flag and text for bind to clicking
+        # make variable that holds both flag and text for bind to clicking
         # when double clicking the dot open the task in outlook avoid late binding
 
-
-        #make variable that holds both flag and text for bind to clicking
+        # make variable that holds both flag and text for bind to clicking
         # when double clicking the dot open the task in outlook avoid late binding
-        canvas_to_draw_on.tag_bind(subject_text, "<Double-Button-1>", lambda event, email=flagged_email: email.Display())
+        canvas_to_draw_on.tag_bind(subject_text, "<Double-Button-1>",
+                                   lambda event, email=flagged_email: email.Display())
         # when right clicking the dot open a popup menu
         canvas_to_draw_on.tag_bind(subject_text, "<Button-3>",
-                                    lambda event, email=flagged_email: add_popup_menu_to_flag(event, email))
+                                   lambda event, email=flagged_email: add_popup_menu_to_flag(event, email))
         canvas_to_draw_on.tag_bind(flag, "<Double-Button-1>",
                                    lambda event, email=flagged_email: email.Display())
         # when right clicking the dot open a popup menu
