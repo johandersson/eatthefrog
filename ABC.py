@@ -988,11 +988,13 @@ def draw_tasks(canvas_to_draw_on):
 
         # mark done on left click
         canvas_to_draw_on.tag_bind(check_box, "<Button-1>", lambda event, task=task: mark_done(event, task))
-        # when double clicking the dot open the task in outlook
-        canvas_to_draw_on.tag_bind(check_box, "<Double-Button-1>", lambda event, task=task: task.Display())
+
         # draw a text with the task information on the canvas with black color and Segoe UI font size 12 if it is installed otherwise Arial
         task_text = canvas_to_draw_on.create_text(x3, y3, text=task_info, fill="black", anchor=tk.W,
                                                   font=("Segoe UI", 12))
+
+        #when double clicking the task text open the task in outlook
+        canvas_to_draw_on.tag_bind(task_text, "<Double-Button-1>", lambda event, task=task: task.Display())
 
         canvas_to_draw_on.tag_bind(task_text, "<Button-3>", lambda event, task=task: action_menu_popup(event, task))
 
@@ -1896,7 +1898,7 @@ def add_menus():
     file_menu.add_command(label="Move tasks to To do",
                           command=lambda: move_tasks_to_inbox(load_tasks(get_canvas_to_draw_on(), draw=False)))
     file_menu.add_command(label="Exit", command=root.destroy)
-    # add choice to move tasks to inbox
+    # add choice to move tasks to inboxR
     # bind CTRL+F to load search tasks
     root.bind("<Control-f>", lambda event: search_tasks_popup())
     search_menu = tk.Menu(menu_bar, tearoff=0)
