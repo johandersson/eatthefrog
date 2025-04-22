@@ -1,0 +1,12 @@
+Help
+•	Click the colored checkbox to the left of the task text to mark it as done. 
+•	To mark it as not done, do the same. The tasks that was marked as done today, is in the Done today-tab.
+•	Left click a the task text to open an action menu on a task
+•	Press CTRL+N to create a new task
+•	Press CTRL+R to reload tasks (if you have edited them in Outlook, and want to see the changes)
+•	Go to the Tasks finished today or Press CTRL+T to show tasks finished today
+•	Press CTRL+A to show only category A tasks on the Today tab
+•	Press CTRL+B to show only category B tasks on the Today tab
+•	Press CTRL+C to show only category C tasks on the Today tab
+•	Press CTRL+I to add several tasks at the same time, one on each line
+•	Press CTRL+F to search tasks

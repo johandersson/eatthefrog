@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+*.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs and databases
+logs/
+*.log
+*.sqlite3
+*.db
+
+# Cache files
+*.cache
+*.bak
+*.swp
+
+# Package directories
+site/
+dist/
+build/
+*.egg-info/
+
+# VS Code settings
+.vscode/
+
+# IDE files
+.idea/
+*.iml
+
+# Test coverage reports
+.coverage
+coverage.xml
+htmlcov/
+
+# Python egg metadata
+*.egg
+*.eggs/
+
+# Local application configuration files
+config.json
